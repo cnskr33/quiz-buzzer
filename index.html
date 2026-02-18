@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Quiz Buzzer</title>
+</head>
+<body>
+
+<h1>Quiz Buzzer</h1>
+
+<div id="login">
+  <input id="name" placeholder="Dein Name">
+  <button onclick="join()">Einwählen</button>
+</div>
+
+<div id="game" style="display:none;">
+  <h2 id="winner"></h2>
+  <button onclick="buzz()">🔴 BUZZER</button>
+  <button onclick="reset()">Reset</button>
+</div>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCob25y3pT7O6wjf21l9xiaCXhGMFLzFQg",
+  authDomain: "testprojekt-dada3.firebaseapp.com",
+  databaseURL: "HIER_DEINE_DATABASE_URL_EINFÜGEN",
+  projectId: "testprojekt-dada3",
+  storageBucket: "testprojekt-dada3.firebasestorage.app",
+  messagingSenderId: "651866459764",
+  appId: "1:651866459764:web:ed23cf3fd5ccf02a42cb21"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+let playerName = "";
+
+window.join = function() {
+  playerName = document.getElementById("name").value;
+  if (!playerName) return alert("Bitte Namen eingeben");
+  document.getElementById("login").style.display = "none";
+  document.getElementById("game").style.display = "block";
+}
+
+window.buzz = function() {
+  set(ref(db, "buzzer"), playerName);
+}
+
+window.reset = function() {
+  set(ref(db, "buzzer"), "");
+}
+
+onValue(ref(db, "buzzer"), (snapshot) => {
+  const name = snapshot.val();
+  if (name) {
+    document.getElementById("winner").innerText = name + " war zuerst!";
+  } else {
+    document.getElementById("winner").innerText = "";
+  }
+});
+
+</script>
+
+</body>
+</html>
