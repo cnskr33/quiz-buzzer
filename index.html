@@ -32,7 +32,6 @@ window.onValueDb = onValue;
 
 <style>
 body{margin:0;font-family:Arial;background:#0b1020;color:#e9eefc}
-
 .hidden{display:none}
 
 /* LOGIN */
@@ -91,7 +90,7 @@ body{margin:0;font-family:Arial;background:#0b1020;color:#e9eefc}
 <!-- LOGIN -->
 <div id="login" class="loginScreen">
   <h1>Quizshow</h1>
-  <input id="playerName" placeholder="Dein Name" />
+  <input id="loginName" placeholder="Dein Name" />
   <button onclick="enterGame()">Einwählen</button>
 </div>
 
@@ -105,15 +104,20 @@ body{margin:0;font-family:Arial;background:#0b1020;color:#e9eefc}
     <span id="winner" class="winner"></span>
   </div>
 
-  <!-- DEIN SPIEL -->
-  <div id="gameContent">
+  <!-- ========================= -->
+  <!-- DEIN SPIEL BEGINNT HIER  -->
+  <!-- ========================= -->
 
-    <!-- ============================= -->
-    <!-- HIER KOMMT DEIN KOMPLETTER SPIELCODE REIN -->
-    <!-- (Der lange Code den du mir geschickt hast) -->
-    <!-- ============================= -->
-
+  <div class="app">
+    <div class="card">
+      <h1>Dein Spiel läuft hier</h1>
+      <p>Hier kommt dein kompletter Spiel-Inhalt rein (nur der Body-Inhalt, ohne html/head/body).</p>
+    </div>
   </div>
+
+  <!-- ========================= -->
+  <!-- DEIN SPIEL ENDET HIER    -->
+  <!-- ========================= -->
 
 </div>
 
@@ -122,11 +126,10 @@ let myName = "";
 
 /* LOGIN */
 function enterGame(){
-  const name = document.getElementById("playerName").value.trim();
+  const name = document.getElementById("loginName").value.trim();
   if(!name) return alert("Name eingeben");
 
   myName = name;
-
   document.getElementById("login").classList.add("hidden");
   document.getElementById("game").classList.remove("hidden");
 }
