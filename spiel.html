@@ -1,0 +1,920 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Quizshow – Runden + Zeitstrahl + Leben</title>
+  <style>
+    :root { font-family: system-ui, Arial, sans-serif; }
+    body { margin: 0; background: #0b1020; color: #e9eefc; }
+
+    .app{
+      display:grid;
+      grid-template-rows: 1fr auto;
+      gap:16px;
+      padding:16px;
+      height:100vh;
+      box-sizing:border-box;
+    }
+
+    .card{
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 16px;
+      padding: 16px;
+      overflow: auto;
+      position: relative;
+    }
+
+    h1 { font-size: 22px; margin: 0; }
+    h2 { font-size: 16px; margin: 14px 0 10px; opacity: 0.92; }
+    .hint { opacity: 0.75; font-size: 13px; line-height: 1.4; margin: 6px 0 0; }
+
+    input, button{
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.08);
+      color: #e9eefc;
+      padding: 10px 12px;
+      font-size: 14px;
+    }
+    input { flex: 1; min-width: 180px; }
+    button { cursor:pointer; }
+    button:hover { background: rgba(255,255,255,0.14); }
+    .danger { border-color: rgba(255,80,80,0.35); }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    /* Flash overlay */
+    .flash {
+      position: absolute;
+      inset: 0;
+      border-radius: 16px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 140ms ease;
+    }
+    .flash.on { opacity: 0.28; }
+    .flash.green { background: rgba(0, 255, 120, 0.55); }
+    .flash.red { background: rgba(255, 40, 60, 0.60); }
+
+    /* Top bar */
+    .topBar{
+      display:flex;
+      align-items:flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .topRight{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .badge{
+      padding: 8px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(0,0,0,0.18);
+      font-weight: 800;
+      min-width: 62px;
+      text-align:center;
+    }
+    .turnBadge{
+      max-width: 360px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-align: left;
+      min-width: 220px;
+    }
+
+    .topRow{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    /* Timeline */
+    .timeline{
+      display:grid;
+      gap: 10px;
+      align-items: stretch;
+      margin-top: 12px;
+    }
+
+    .slot{
+      border-radius: 16px;
+      border: 1px dashed rgba(255,255,255,0.22);
+      background: rgba(0,0,0,0.18);
+      min-height: 170px;
+      padding: 10px;
+      display: grid;
+      grid-template-rows: 24px 1fr;
+      gap: 10px;
+      user-select: none;
+    }
+
+    .slotHeader{
+      height: 24px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight: 900;
+      font-size: 14px;
+      opacity: 0.95;
+    }
+
+    .slot.dropOver { outline: 2px solid rgba(255,255,255,0.35); outline-offset: 2px; }
+
+    .slotBody{ display:grid; place-items: center; width: 100%; height: 100%; }
+    .emptyDrop{ opacity: 0.7; font-size: 13px; text-align:center; }
+
+    /* Cards */
+    .pool{
+      display:grid;
+      grid-template-columns: repeat(8, minmax(120px, 1fr));
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .cardItem{
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(0,0,0,0.22);
+      padding: 10px;
+      display: grid;
+      grid-template-rows: auto auto auto; /* Name + optional Wert in Lösung */
+      gap: 8px;
+      justify-items: center;
+      cursor: grab;
+      user-select: none;
+    }
+    .cardItem:active { cursor: grabbing; }
+
+    .cardItem[data-status="pending"] { outline: 2px solid rgba(255, 220, 80, 0.55); outline-offset: 2px; }
+    .cardItem[data-status="fixed"]   { outline: 2px solid rgba(120, 255, 180, 0.35); outline-offset: 2px; }
+
+    .avatar{
+      width: 72px;
+      height: 72px;
+      max-width: 100%;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.08);
+      object-fit: cover;
+    }
+    .label{
+      font-weight: 900;
+      font-size: 12.8px;
+      line-height: 1.2;
+      text-align: center;
+    }
+
+    /* Scoreboard */
+    .scoreboardCompact .row { display:flex; gap:10px; align-items:center; flex-wrap: wrap; }
+    .scoreboardCompact .players{
+      display:grid;
+      grid-template-columns: repeat(5, minmax(160px, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .player{
+      display:grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items:center;
+      padding: 10px;
+      border-radius: 14px;
+      background: rgba(0,0,0,0.2);
+      border: 1px solid rgba(255,255,255,0.10);
+    }
+
+    .player.active{
+      outline: 2px solid rgba(120, 190, 255, 0.55);
+      outline-offset: 2px;
+    }
+
+    .name{ font-weight: 750; font-size: 14px; }
+    .score{ font-size: 22px; font-weight: 900; text-align:right; min-width: 70px; }
+
+    .controls{ display:flex; gap: 8px; justify-content:flex-end; }
+    .btn{
+      width: 40px;
+      height: 36px;
+      display:grid;
+      place-items:center;
+      font-size: 18px;
+      padding: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <div class="card" id="gameCard">
+      <div class="flash" id="flash"></div>
+
+      <div class="topBar">
+        <div>
+          <h1 id="title">Runde</h1>
+          <div class="hint" id="hint"></div>
+        </div>
+
+        <div class="topRight">
+          <div class="badge turnBadge" id="turnBadge">Am Zug: —</div>
+          <div class="badge" id="roundBadge">1/4</div>
+          <button id="nextRound">Nächste Runde</button>
+        </div>
+      </div>
+
+      <div class="topRow">
+        <button id="checkBtn">Überprüfen</button>
+        <button id="solutionBtn" disabled>Lösung</button>
+        <button id="resetTimeline" class="danger">Zeitstrahl zurücksetzen</button>
+        <button id="shufflePool">Karten mischen</button>
+      </div>
+
+      <div id="timeline" class="timeline"></div>
+
+      <h2>Pool</h2>
+      <div id="pool" class="pool"></div>
+
+      <div class="hint" style="margin-top:10px;">
+        Gelb = zuletzt gesetzte Karte · Grün = bestätigt/fix · Werte sieht man nur in der Lösung
+      </div>
+    </div>
+
+    <div class="card scoreboardCompact">
+      <h1>Scoreboard</h1>
+
+      <div class="row">
+        <input id="playerName" placeholder="Mitspielername…" />
+        <button id="addPlayer">Hinzufügen</button>
+        <button id="resetScores" class="danger">Punkte reset</button>
+        <button id="clearAll" class="danger">Alles löschen</button>
+      </div>
+
+      <div class="players" id="players"></div>
+    </div>
+  </div>
+
+  <script>
+    /** ========= RUNDEN (1/4 + 2/4) ========= */
+
+    // Runde 1: Fußball (deine Werte/Spieler aus fussballdaten – bereits bei dir korrekt)
+    const roundFootball = {
+      id: "football",
+      title: "Runde 1: Top 15 Fußballer (Marktwert)",
+      hint: "Links = niedriger Marktwert, rechts = höher. Startkarte wird automatisch mittig gesetzt.",
+      unit: "Mio €",
+      decimals: 1,
+      slotCount: 15,
+      items: [
+        { id:"yamal", name:"Lamine Yamal", value:258.4, img:"assets/lamine_yamal.jpg" },
+        { id:"mbappe", name:"Kylian Mbappé", value:192.1, img:"assets/kylian_mbappe.jpg" },
+        { id:"vinicius", name:"Vinicius Junior", value:182.7, img:"assets/vinicius_junior.jpg" },
+        { id:"haaland", name:"Erling Haaland", value:177.9, img:"assets/erling_haaland.jpg" },
+        { id:"bellingham", name:"Jude Bellingham", value:177.1, img:"assets/jude_bellingham.jpg" },
+        { id:"olise", name:"Michael Olise", value:156.7, img:"assets/michael_olise.jpg" },
+        { id:"pedri", name:"Pedri", value:142.3, img:"assets/pedri.jpg" },
+        { id:"palmer", name:"Cole Palmer", value:138.7, img:"assets/cole_palmer.jpg" },
+        { id:"musiala", name:"Jamal Musiala", value:130.7, img:"assets/jamal_musiala.jpg" },
+        { id:"joaoneves", name:"João Neves", value:129.7, img:"assets/joao_neves.jpg" },
+        { id:"wirtz", name:"Florian Wirtz", value:126.5, img:"assets/florian_wirtz.jpg" },
+        { id:"saka", name:"Bukayo Saka", value:123.0, img:"assets/bukayo_saka.jpg" },
+        { id:"cubarsi", name:"Pau Cubarsí", value:122.9, img:"assets/pau_cubarsi.jpg" },
+        { id:"rice", name:"Declan Rice", value:121.1, img:"assets/declan_rice.jpg" },
+        { id:"gyokeres", name:"Viktor Gyökeres", value:120.1, img:"assets/viktor_gyokeres.jpg" },
+      ],
+    };
+
+    // Runde 2: DAX Unternehmen (Aktienkurs, €)
+    const roundDax = {
+      id: "dax",
+      title: "Runde 2: DAX-Unternehmen (Aktienkurs)",
+      hint: "Links = niedriger Kurs, rechts = höher. Startkarte wird automatisch mittig gesetzt.",
+      unit: "€",
+      decimals: 2,
+      slotCount: 16,
+      items: [
+        { id:"telekom", name:"Deutsche Telekom", value:27.57, img:"assets/dax/deutsche_telekom.jpg" },
+        { id:"rheinmetall", name:"Rheinmetall", value:1926.50, img:"assets/dax/rheinmetall.jpg" },
+        { id:"bayer", name:"Bayer", value:44.49, img:"assets/dax/bayer.jpg" },
+        { id:"rwe", name:"RWE", value:51.68, img:"assets/dax/rwe.jpg" },
+        { id:"eon", name:"E.ON", value:17.38, img:"assets/dax/eon.jpg" },
+        { id:"allianz", name:"Allianz", value:379.30, img:"assets/dax/allianz.jpg" },
+        { id:"hannoverr", name:"Hannover Rück", value:244.40, img:"assets/dax/hannover_rueck.jpg" },
+        { id:"munichre", name:"Münchener Rück", value:524.80, img:"assets/dax/muenchener_rueck.jpg" },
+        { id:"heidelberg", name:"Heidelberg Materials", value:232.30, img:"assets/dax/heidelberg_materials.jpg" },
+        { id:"henkelvz", name:"Henkel Vz", value:71.96, img:"assets/dax/henkel_vz.jpg" },
+        { id:"zalando", name:"Zalando", value:25.38, img:"assets/dax/zalando.jpg" },
+        { id:"siemensenergy", name:"Siemens Energy", value:134.50, img:"assets/dax/siemens_energy.jpg" },
+        { id:"vonovia", name:"Vonovia", value:25.03, img:"assets/dax/vonovia.jpg" },
+        { id:"deutscheboerse", name:"Deutsche Börse", value:209.80, img:"assets/dax/deutsche_boerse.jpg" },
+        { id:"symrise", name:"Symrise", value:72.74, img:"assets/dax/symrise.jpg" },
+        { id:"merck", name:"Merck", value:128.50, img:"assets/dax/merck.jpg" },
+      ],
+    };
+
+    const rounds = [roundFootball, roundDax];
+    const TOTAL_ROUNDS_BADGE = 4;
+
+    function getRound(){ return rounds[currentRoundIndex]; }
+
+    /** ========= GAME STATE ========= */
+    let currentRoundIndex = 0;
+
+    let slotPlacements = [];
+    let statusById = {};
+    let poolOrder = [];
+    let lastPlacedId = null;
+
+    /** Turns + Lives */
+    const STORAGE_KEY = "quizshow_state_v2";
+    const LIVES_PER_ROUND = 2;
+
+    let state = loadState(); // {players:[{id,name,score}]}
+    let currentTurnIndex = 0;
+
+    let livesById = {};
+    let eliminatedById = {};
+
+    /** Solution display state */
+    let solutionShown = false;
+
+    /** ========= UTILS ========= */
+    function shuffle(arr){
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--){
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    function setFlash(color){
+      const el = document.getElementById("flash");
+      el.classList.remove("green","red","on");
+      el.classList.add(color);
+      requestAnimationFrame(() => el.classList.add("on"));
+      setTimeout(() => el.classList.remove("on"), 180);
+    }
+
+    function itemById(id){ return getRound().items.find(x => x.id === id); }
+    function indexOfItem(id){ return slotPlacements.findIndex(x => x === id); }
+    function placedIds(){ return new Set(slotPlacements.filter(Boolean)); }
+
+    function formatValue(v){
+      const r = getRound();
+      const nf = new Intl.NumberFormat("de-DE", { minimumFractionDigits: r.decimals, maximumFractionDigits: r.decimals });
+      return `${nf.format(v)} ${r.unit}`;
+    }
+
+    /** ========= ROUND INIT ========= */
+    function resetLivesForRound(){
+      livesById = {};
+      eliminatedById = {};
+      for (const p of state.players){
+        livesById[p.id] = LIVES_PER_ROUND;
+        eliminatedById[p.id] = false;
+      }
+      currentTurnIndex = 0;
+      solutionShown = false;
+      updateSolutionButton();
+      updateTurnUI();
+      renderScoreboard();
+    }
+
+    function updateRoundUI(){
+      const r = getRound();
+      document.getElementById("title").textContent = r.title;
+      document.getElementById("hint").textContent = r.hint;
+      document.getElementById("roundBadge").textContent = `${currentRoundIndex + 1}/${TOTAL_ROUNDS_BADGE}`;
+
+      const timeline = document.getElementById("timeline");
+      timeline.style.gridTemplateColumns = `repeat(${r.slotCount}, minmax(64px, 1fr))`;
+    }
+
+    function initRound(index){
+      currentRoundIndex = index;
+      updateRoundUI();
+
+      const r = getRound();
+      slotPlacements = Array.from({ length: r.slotCount }, () => null);
+      statusById = Object.fromEntries(r.items.map(it => [it.id, "pool"]));
+      poolOrder = shuffle(r.items.map(x => x.id));
+      lastPlacedId = null;
+
+      seedMiddleFixed();
+      resetLivesForRound();
+      renderAll();
+    }
+
+    function seedMiddleFixed(){
+      const r = getRound();
+      const mid = Math.floor(r.slotCount / 2);
+      const pick = r.items[Math.floor(Math.random() * r.items.length)].id;
+      slotPlacements[mid] = pick;
+      statusById[pick] = "fixed";
+    }
+
+    function nextRound(){
+      const next = currentRoundIndex + 1;
+      if (next >= rounds.length){
+        alert("Weitere Runden (3/4, 4/4) sind noch nicht angelegt.");
+        return;
+      }
+      initRound(next);
+    }
+
+    function resetTimeline(){
+      const r = getRound();
+      slotPlacements = Array.from({ length: r.slotCount }, () => null);
+      for (const it of r.items) statusById[it.id] = "pool";
+      poolOrder = shuffle(r.items.map(x => x.id));
+      lastPlacedId = null;
+      seedMiddleFixed();
+      resetLivesForRound();
+      renderAll();
+    }
+
+    /** ========= INSERT / GAP CLOSE ========= */
+    function insertWithShift(targetIndex, droppedId){
+      const existingIndex = indexOfItem(droppedId);
+      if (existingIndex !== -1) slotPlacements[existingIndex] = null;
+
+      if (!slotPlacements[targetIndex]){
+        slotPlacements[targetIndex] = droppedId;
+        return true;
+      }
+
+      let emptyRight = -1;
+      for (let k = targetIndex; k < slotPlacements.length; k++){
+        if (slotPlacements[k] === null) { emptyRight = k; break; }
+      }
+      if (emptyRight !== -1){
+        for (let k = emptyRight; k > targetIndex; k--){
+          slotPlacements[k] = slotPlacements[k - 1];
+        }
+        slotPlacements[targetIndex] = droppedId;
+        return true;
+      }
+
+      let emptyLeft = -1;
+      for (let k = targetIndex; k >= 0; k--){
+        if (slotPlacements[k] === null) { emptyLeft = k; break; }
+      }
+      if (emptyLeft !== -1){
+        for (let k = emptyLeft; k < targetIndex; k++){
+          slotPlacements[k] = slotPlacements[k + 1];
+        }
+        slotPlacements[targetIndex] = droppedId;
+        return true;
+      }
+
+      return false;
+    }
+
+    function closeGapFromIndex(startIndex){
+      for (let i = startIndex; i < slotPlacements.length; i++){
+        if (slotPlacements[i] !== null) continue;
+
+        let j = i + 1;
+        while (j < slotPlacements.length && slotPlacements[j] === null) j++;
+        if (j >= slotPlacements.length) return;
+
+        slotPlacements[i] = slotPlacements[j];
+        slotPlacements[j] = null;
+      }
+    }
+
+    /** ========= CHECK / SOLUTION ========= */
+    function isPlacementConsistent(){
+      const placed = slotPlacements
+        .map((id, idx) => ({ id, idx }))
+        .filter(x => x.id !== null)
+        .map(x => ({ ...x, value: itemById(x.id).value }));
+
+      for (let i = 0; i < placed.length; i++){
+        for (let j = i + 1; j < placed.length; j++){
+          const a = placed[i], b = placed[j];
+          if (a.value === b.value) continue;
+          if (a.value < b.value && !(a.idx < b.idx)) return false;
+          if (a.value > b.value && !(a.idx > b.idx)) return false;
+        }
+      }
+      return true;
+    }
+
+    function getCorrectOrderIds(){
+      const r = getRound();
+      return [...r.items]
+        .sort((a,b) => (a.value - b.value) || a.name.localeCompare(b.name))
+        .map(x => x.id);
+    }
+
+    function showSolution(){
+      const r = getRound();
+      const ids = getCorrectOrderIds();
+      slotPlacements = Array.from({ length: r.slotCount }, (_, i) => ids[i] ?? null);
+
+      for (const it of r.items) statusById[it.id] = "fixed";
+      lastPlacedId = null;
+      solutionShown = true;
+
+      renderAll();
+      document.getElementById("turnBadge").textContent = "Lösung angezeigt";
+      updateSolutionButton();
+    }
+
+    function updateSolutionButton(){
+      const btn = document.getElementById("solutionBtn");
+      const anyAlive = state.players.some(p => !eliminatedById[p.id]);
+      btn.disabled = anyAlive || state.players.length === 0;
+    }
+
+    /** ========= TURNS / LIVES ========= */
+    function getCurrentPlayer(){
+      if (!state.players || state.players.length === 0) return null;
+
+      const anyAlive = state.players.some(p => !eliminatedById[p.id]);
+      if (!anyAlive) return null;
+
+      if (currentTurnIndex >= state.players.length) currentTurnIndex = 0;
+
+      let tries = 0;
+      while (tries < state.players.length && eliminatedById[state.players[currentTurnIndex].id]){
+        currentTurnIndex = (currentTurnIndex + 1) % state.players.length;
+        tries++;
+      }
+      return state.players[currentTurnIndex];
+    }
+
+    function advanceTurn(){
+      if (!state.players || state.players.length === 0){
+        currentTurnIndex = 0;
+        updateTurnUI();
+        renderScoreboard();
+        updateSolutionButton();
+        return;
+      }
+
+      const anyAlive = state.players.some(p => !eliminatedById[p.id]);
+      if (!anyAlive){
+        document.getElementById("turnBadge").textContent = "Runde vorbei (alle ausgeschieden)";
+        renderScoreboard();
+        updateSolutionButton();
+        return;
+      }
+
+      for (let step = 1; step <= state.players.length; step++){
+        const idx = (currentTurnIndex + step) % state.players.length;
+        const pid = state.players[idx].id;
+        if (!eliminatedById[pid]){
+          currentTurnIndex = idx;
+          break;
+        }
+      }
+
+      updateTurnUI();
+      renderScoreboard();
+      updateSolutionButton();
+    }
+
+    function updateTurnUI(){
+      const badge = document.getElementById("turnBadge");
+      const p = getCurrentPlayer();
+      badge.textContent = p ? `Am Zug: ${p.name}` : "Am Zug: —";
+    }
+
+    function verify(){
+      if (!lastPlacedId) return;
+      if (solutionShown) return;
+
+      const ok = isPlacementConsistent();
+      const p = getCurrentPlayer();
+
+      if (ok){
+        statusById[lastPlacedId] = "fixed";
+        setFlash("green");
+
+        if (p) changeScore(p.id, +1);
+
+        lastPlacedId = null;
+        renderAll();
+        advanceTurn();
+      } else {
+        const idx = indexOfItem(lastPlacedId);
+        if (idx !== -1) slotPlacements[idx] = null;
+        if (idx !== -1) closeGapFromIndex(idx);
+
+        statusById[lastPlacedId] = "pool";
+        lastPlacedId = null;
+
+        poolOrder = shuffle(poolOrder);
+        setFlash("red");
+        renderAll();
+
+        if (p){
+          livesById[p.id] = Math.max(0, (livesById[p.id] ?? LIVES_PER_ROUND) - 1);
+          if (livesById[p.id] === 0) eliminatedById[p.id] = true;
+        }
+
+        advanceTurn();
+      }
+    }
+
+    /** ========= RENDER ========= */
+    function renderAll(){
+      renderTimeline();
+      renderPool();
+    }
+
+    function renderTimeline(){
+      const r = getRound();
+      const timeline = document.getElementById("timeline");
+      timeline.innerHTML = "";
+
+      for (let i = 0; i < r.slotCount; i++){
+        const slot = document.createElement("div");
+        slot.className = "slot";
+
+        const header = document.createElement("div");
+        header.className = "slotHeader";
+        header.textContent = String(i + 1);
+
+        const body = document.createElement("div");
+        body.className = "slotBody";
+
+        const id = slotPlacements[i];
+        if (id){
+          body.appendChild(makeCard(itemById(id), true));
+        } else {
+          const empty = document.createElement("div");
+          empty.className = "emptyDrop";
+          empty.textContent = "Drop";
+          body.appendChild(empty);
+        }
+
+        slot.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          slot.classList.add("dropOver");
+        }, true);
+
+        slot.addEventListener("dragleave", () => slot.classList.remove("dropOver"), true);
+
+        slot.addEventListener("drop", (e) => {
+          e.preventDefault();
+          slot.classList.remove("dropOver");
+          if (solutionShown) return;
+
+          const droppedId = e.dataTransfer.getData("text/itemId");
+          if (!droppedId) return;
+
+          const ok = insertWithShift(i, droppedId);
+          if (!ok) return;
+
+          lastPlacedId = droppedId;
+          statusById[droppedId] = "pending";
+          renderAll();
+        }, true);
+
+        slot.appendChild(header);
+        slot.appendChild(body);
+        timeline.appendChild(slot);
+      }
+    }
+
+    function renderPool(){
+      const pool = document.getElementById("pool");
+      pool.innerHTML = "";
+      if (solutionShown) return;
+
+      const placed = placedIds();
+      for (const id of poolOrder){
+        if (placed.has(id)) continue;
+        if (statusById[id] !== "pool") continue;
+        pool.appendChild(makeCard(itemById(id), false));
+      }
+    }
+
+    function makeCard(item, inSlot){
+      const card = document.createElement("div");
+      card.className = "cardItem";
+      card.draggable = true;
+      card.dataset.status = statusById[item.id] || "pool";
+
+      const img = document.createElement("img");
+      img.className = "avatar";
+      img.alt = item.name;
+      img.src = item.img;
+      img.onerror = () => { img.removeAttribute("src"); };
+
+      const label = document.createElement("div");
+      label.className = "label";
+      label.textContent = item.name;
+
+      card.addEventListener("dragstart", (e) => {
+        e.dataTransfer.setData("text/itemId", item.id);
+      });
+
+      card.appendChild(img);
+      card.appendChild(label);
+
+      // Werte nur in der Lösung (und nur im Zeitstrahl)
+      if (solutionShown && inSlot){
+        const v = document.createElement("div");
+        v.className = "label";
+        v.style.opacity = "0.85";
+        v.style.fontSize = "12px";
+        v.textContent = formatValue(item.value);
+        card.appendChild(v);
+      } else {
+        // Platzhalter-Zeile, damit Grid stabil bleibt
+        const spacer = document.createElement("div");
+        spacer.style.height = "0px";
+        card.appendChild(spacer);
+      }
+
+      if (inSlot){
+        card.title = "Klick: zurück in Pool";
+        card.addEventListener("click", () => {
+          if (solutionShown) return;
+
+          const idx = indexOfItem(item.id);
+          if (idx !== -1) slotPlacements[idx] = null;
+          statusById[item.id] = "pool";
+          if (lastPlacedId === item.id) lastPlacedId = null;
+          if (idx !== -1) closeGapFromIndex(idx);
+          renderAll();
+        });
+      }
+
+      return card;
+    }
+
+    /** ========= SCOREBOARD (LocalStorage) ========= */
+    function loadState(){
+      try{
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return { players: [] };
+        const parsed = JSON.parse(raw);
+        if (!parsed.players) return { players: [] };
+        return parsed;
+      } catch {
+        return { players: [] };
+      }
+    }
+    function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+    function uid(){ return Math.random().toString(16).slice(2) + Date.now().toString(16); }
+
+    function addPlayer(name){
+      const clean = name.trim();
+      if (!clean) return;
+      const p = { id: uid(), name: clean, score: 0 };
+      state.players.push(p);
+
+      livesById[p.id] = LIVES_PER_ROUND;
+      eliminatedById[p.id] = false;
+
+      if (state.players.length === 1) currentTurnIndex = 0;
+      saveState();
+      renderScoreboard();
+      updateTurnUI();
+      updateSolutionButton();
+    }
+
+    function changeScore(id, delta){
+      const p = state.players.find(x => x.id === id);
+      if (!p) return;
+      p.score += delta;
+      saveState();
+      renderScoreboard();
+    }
+
+    function removePlayer(id){
+      const idx = state.players.findIndex(x => x.id === id);
+      state.players = state.players.filter(x => x.id !== id);
+
+      delete livesById[id];
+      delete eliminatedById[id];
+
+      if (state.players.length === 0) currentTurnIndex = 0;
+      else {
+        if (idx !== -1 && idx <= currentTurnIndex) currentTurnIndex = Math.max(0, currentTurnIndex - 1);
+        if (currentTurnIndex >= state.players.length) currentTurnIndex = 0;
+      }
+
+      saveState();
+      renderScoreboard();
+      updateTurnUI();
+      updateSolutionButton();
+    }
+
+    function resetScores(){
+      state.players.forEach(p => p.score = 0);
+      saveState();
+      renderScoreboard();
+    }
+
+    function clearAll(){
+      state = { players: [] };
+      currentTurnIndex = 0;
+      livesById = {};
+      eliminatedById = {};
+      solutionShown = false;
+      saveState();
+      renderScoreboard();
+      updateTurnUI();
+      updateSolutionButton();
+    }
+
+    function renderScoreboard(){
+      const root = document.getElementById("players");
+      root.innerHTML = "";
+      const activeId = getCurrentPlayer()?.id ?? null;
+
+      const playersSorted = [...state.players].sort((a,b) => b.score - a.score);
+      for (const p of playersSorted){
+        const el = document.createElement("div");
+        el.className = "player" + (activeId === p.id ? " active" : "");
+
+        const left = document.createElement("div");
+
+        const lives = livesById[p.id] ?? LIVES_PER_ROUND;
+        const eliminated = !!eliminatedById[p.id];
+        const hearts = "❤️".repeat(lives) + "🤍".repeat(LIVES_PER_ROUND - lives);
+
+        left.innerHTML = `
+          <div class="name">${escapeHtml(p.name)}${eliminated ? " (ausgeschieden)" : ""}</div>
+          <div style="opacity:.9; font-size:14px; margin-top:4px;">${hearts}</div>
+        `;
+
+        const right = document.createElement("div");
+        right.innerHTML = `
+          <div class="score">${p.score}</div>
+          <div class="controls">
+            <button class="btn" title="-1">−</button>
+            <button class="btn" title="+1">+</button>
+            <button class="btn danger" title="Entfernen">✕</button>
+          </div>
+        `;
+
+        const [btnMinus, btnPlus, btnRemove] = right.querySelectorAll("button");
+        btnMinus.addEventListener("click", () => changeScore(p.id, -1));
+        btnPlus.addEventListener("click", () => changeScore(p.id, +1));
+        btnRemove.addEventListener("click", () => removePlayer(p.id));
+
+        el.appendChild(left);
+        el.appendChild(right);
+        root.appendChild(el);
+      }
+    }
+
+    function escapeHtml(str){
+      return String(str)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    /** ========= WIRE UI ========= */
+    document.getElementById("checkBtn").addEventListener("click", verify);
+    document.getElementById("solutionBtn").addEventListener("click", showSolution);
+    document.getElementById("resetTimeline").addEventListener("click", resetTimeline);
+    document.getElementById("shufflePool").addEventListener("click", () => {
+      poolOrder = shuffle(poolOrder);
+      renderPool();
+    });
+    document.getElementById("nextRound").addEventListener("click", nextRound);
+
+    const input = document.getElementById("playerName");
+    document.getElementById("addPlayer").addEventListener("click", () => {
+      addPlayer(input.value);
+      input.value = "";
+      input.focus();
+    });
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        addPlayer(input.value);
+        input.value = "";
+      }
+    });
+
+    document.getElementById("resetScores").addEventListener("click", resetScores);
+    document.getElementById("clearAll").addEventListener("click", clearAll);
+
+    /** ========= INIT ========= */
+    initRound(0);
+    renderScoreboard();
+    updateTurnUI();
+    updateSolutionButton();
+  </script>
+</body>
+</html>
