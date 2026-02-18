@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Quizshow</title>
 
+<!-- FIREBASE -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, set, get, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
@@ -12,7 +13,7 @@ import { getDatabase, ref, set, get, onValue } from "https://www.gstatic.com/fir
 const firebaseConfig = {
   apiKey: "AIzaSyCob25y3pT7O6wjf21l9xiaCXhGMFLzFQg",
   authDomain: "testprojekt-dada3.firebaseapp.com",
-  databaseURL: "https://testprojekt-dada3-default-rtdb.europe-west1.firebasedatabase.app",
+  databaseURL: "HIER_DEINE_DATABASE_URL",
   projectId: "testprojekt-dada3",
   storageBucket: "testprojekt-dada3.firebasestorage.app",
   messagingSenderId: "651866459764",
@@ -31,27 +32,57 @@ window.onValueDb = onValue;
 
 <style>
 body{margin:0;font-family:Arial;background:#0b1020;color:#e9eefc}
+
+.hidden{display:none}
+
+/* LOGIN */
 .loginScreen{
-  display:flex;flex-direction:column;justify-content:center;align-items:center;
-  height:100vh;gap:15px
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+  gap:15px
 }
 .loginScreen input{
-  padding:12px;border-radius:8px;border:none;font-size:16px
+  padding:12px;
+  border-radius:8px;
+  border:none;
+  font-size:16px
 }
 .loginScreen button{
-  padding:12px 20px;border:none;border-radius:8px;background:#2563eb;color:white;font-size:16px;cursor:pointer
+  padding:12px 20px;
+  border:none;
+  border-radius:8px;
+  background:#2563eb;
+  color:white;
+  font-size:16px;
+  cursor:pointer
 }
+
+/* BUZZER BAR */
 .buzzerBar{
-  background:#111a33;padding:10px;display:flex;gap:10px;align-items:center;
-  justify-content:center;border-bottom:2px solid #2a3a66
+  background:#111a33;
+  padding:10px;
+  display:flex;
+  gap:15px;
+  align-items:center;
+  justify-content:center;
+  border-bottom:2px solid #2a3a66
 }
 .buzzerBtn{
-  background:red;color:white;font-size:20px;padding:10px 20px;border:none;border-radius:10px;cursor:pointer
+  background:red;
+  color:white;
+  font-size:20px;
+  padding:10px 20px;
+  border:none;
+  border-radius:10px;
+  cursor:pointer
 }
 .winner{
-  font-weight:bold;font-size:18px
+  font-weight:bold;
+  font-size:18px
 }
-.hidden{display:none}
 </style>
 </head>
 
@@ -67,37 +98,40 @@ body{margin:0;font-family:Arial;background:#0b1020;color:#e9eefc}
 <!-- SPIEL -->
 <div id="game" class="hidden">
 
+  <!-- BUZZER -->
   <div class="buzzerBar">
     <button class="buzzerBtn" onclick="buzz()">🔴 BUZZER</button>
     <button onclick="resetBuzz()">Reset</button>
     <span id="winner" class="winner"></span>
   </div>
 
-  <!-- HIER BEGINNT DEIN SPIEL -->
-  <iframe srcdoc='
-  <!-- DEIN GESAMTER SPIELCODE WIRD HIER EINGEBETTET -->
-  <!DOCTYPE html>
-  <html>
-  <body style="background:#0b1020;color:white;font-family:Arial;text-align:center">
-  <h2>Dein Spiel läuft hier normal weiter</h2>
-  <p>Hier kommt dein kompletter Spielcode rein (der lange Code den du geschickt hast).</p>
-  </body>
-  </html>
-  ' style="width:100%;height:85vh;border:none;"></iframe>
+  <!-- DEIN SPIEL -->
+  <div id="gameContent">
+
+    <!-- ============================= -->
+    <!-- HIER KOMMT DEIN KOMPLETTER SPIELCODE REIN -->
+    <!-- (Der lange Code den du mir geschickt hast) -->
+    <!-- ============================= -->
+
+  </div>
 
 </div>
 
 <script>
 let myName = "";
 
+/* LOGIN */
 function enterGame(){
   const name = document.getElementById("playerName").value.trim();
   if(!name) return alert("Name eingeben");
+
   myName = name;
+
   document.getElementById("login").classList.add("hidden");
   document.getElementById("game").classList.remove("hidden");
 }
 
+/* BUZZER */
 async function buzz(){
   if(!myName) return;
 
@@ -126,4 +160,3 @@ onValueDb(refDb(db,"buzzer"), (snap)=>{
 
 </body>
 </html>
-
