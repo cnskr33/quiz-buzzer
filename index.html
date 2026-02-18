@@ -76,14 +76,6 @@ body{margin:0;font-family:Arial;background:#0b1020;color:#e9eefc}
   font-weight:bold;
   font-size:18px
 }
-.app{
-  padding:20px;
-}
-.card{
-  background:rgba(255,255,255,0.08);
-  padding:20px;
-  border-radius:12px;
-}
 </style>
 </head>
 
@@ -99,18 +91,60 @@ body{margin:0;font-family:Arial;background:#0b1020;color:#e9eefc}
 <!-- GAME -->
 <div id="game" class="hidden">
 
+  <!-- BUZZER -->
   <div class="buzzerBar">
     <button class="buzzerBtn" onclick="buzz()">🔴 BUZZER</button>
     <button onclick="resetBuzz()">Reset</button>
     <span id="winner" class="winner"></span>
   </div>
 
-  <!-- SPIEL -->
+  <!-- ======================= -->
+  <!-- DEIN KOMPLETTES SPIEL  -->
+  <!-- ======================= -->
+
+  <!-- Hier beginnt dein alter Body-Inhalt -->
+  
   <div class="app">
-    <div class="card">
-      <h2>Test-Spiel (Zeitstrahl-Logik)</h2>
-      <p>Dies ist eine Testintegration. Dein komplettes Spiel kann hier eingefügt werden.</p>
-      <p>Scoreboard und Drag&Drop funktionieren weiterhin normal.</p>
+    <div class="card" id="gameCard">
+      <div class="flash" id="flash"></div>
+
+      <div class="topBar">
+        <div>
+          <h1 id="title">Runde</h1>
+          <div class="hint" id="hint"></div>
+        </div>
+
+        <div class="topRight">
+          <div class="badge turnBadge" id="turnBadge">Am Zug: —</div>
+          <div class="badge" id="roundBadge">1/4</div>
+          <button id="nextRound">Nächste Runde</button>
+        </div>
+      </div>
+
+      <div class="topRow">
+        <button id="checkBtn">Überprüfen</button>
+        <button id="solutionBtn" disabled>Lösung</button>
+        <button id="resetTimeline" class="danger">Zeitstrahl zurücksetzen</button>
+        <button id="shufflePool">Karten mischen</button>
+      </div>
+
+      <div id="timeline" class="timeline"></div>
+
+      <h2>Pool</h2>
+      <div id="pool" class="pool"></div>
+    </div>
+
+    <div class="card scoreboardCompact">
+      <h1>Scoreboard</h1>
+
+      <div class="row">
+        <input id="scorePlayerInput" placeholder="Mitspielername…" />
+        <button id="addPlayer">Hinzufügen</button>
+        <button id="resetScores" class="danger">Punkte reset</button>
+        <button id="clearAll" class="danger">Alles löschen</button>
+      </div>
+
+      <div class="players" id="players"></div>
     </div>
   </div>
 
