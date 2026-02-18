@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Quizshow – Spiel</title>
+<title>Quizshow – Zeitstrahl</title>
 
 <!-- FIREBASE -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -27,7 +27,7 @@ const db = firebase.database();
 <style>
 body{margin:0;font-family:Arial;background:#0b1020;color:#e9eefc}
 
-/* BUZZER BAR */
+/* BUZZER */
 .buzzerBar{
   background:#111a33;
   padding:12px;
@@ -63,35 +63,61 @@ body{margin:0;font-family:Arial;background:#0b1020;color:#e9eefc}
   font-size:18px;
 }
 
-/* SPIELBEREICH */
+/* SPIEL */
 .app{
-  display:grid;
-  grid-template-rows: 1fr auto;
-  gap:16px;
-  padding:16px;
-  height:calc(100vh - 70px);
-  box-sizing:border-box;
+  padding:20px;
 }
 
-.card{
-  background: rgba(255,255,255,0.06);
-  border-radius: 16px;
-  padding: 16px;
-  overflow: auto;
+.timeline{
+  display:grid;
+  grid-template-columns: repeat(15, 1fr);
+  gap:8px;
+  margin-bottom:30px;
+}
+
+.slot{
+  min-height:140px;
+  border:2px dashed rgba(255,255,255,0.3);
+  border-radius:12px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:12px;
+  text-align:center;
+  padding:4px;
 }
 
 .pool{
   display:grid;
-  grid-template-columns: repeat(6, minmax(120px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(5, 1fr);
+  gap:12px;
 }
 
 .cardItem{
-  border-radius: 16px;
-  background: rgba(0,0,0,0.3);
-  padding: 10px;
+  background: rgba(0,0,0,0.4);
+  border-radius:12px;
+  padding:8px;
   text-align:center;
   cursor:pointer;
+  transition:0.2s;
+}
+
+.cardItem img{
+  width:70px;
+  height:70px;
+  object-fit:cover;
+  border-radius:8px;
+  display:block;
+  margin:auto;
+  margin-bottom:6px;
+}
+
+.cardItem:hover{
+  transform:scale(1.05);
+}
+
+.selected{
+  outline:3px solid yellow;
 }
 </style>
 </head>
@@ -105,23 +131,24 @@ body{margin:0;font-family:Arial;background:#0b1020;color:#e9eefc}
   <span id="winner" class="winner"></span>
 </div>
 
-<!-- SPIEL -->
 <div class="app">
 
-  <div class="card">
-    <h2>Runde 1: Top 15 Fußballer (Marktwert)</h2>
-    <p>Klick auf eine Karte (nur Demo-Version hier eingebaut)</p>
+<h2>Top 15 Fußballer – Marktwert Zeitstrahl</h2>
+<p>Links = niedriger Marktwert → Rechts = höher</p>
 
-    <div class="pool" id="pool"></div>
-  </div>
+<div id="timeline" class="timeline"></div>
+
+<h3>Spieler</h3>
+<div id="pool" class="pool"></div>
 
 </div>
 
 <script>
-/* ========= NAME LADEN ========= */
+
+/* ========= NAME CHECK ========= */
 const myName = localStorage.getItem("quiz_name");
 if(!myName){
-  alert("Kein Name gefunden. Zurück zum Login.");
+  alert("Kein Name gefunden.");
   window.location.href = "index.html";
 }
 
@@ -129,7 +156,6 @@ if(!myName){
 async function buzz(){
   const buzzerRef = db.ref("buzzer");
   const snap = await buzzerRef.get();
-
   if(!snap.exists() || !snap.val()){
     buzzerRef.set(myName);
   }
@@ -145,30 +171,73 @@ db.ref("buzzer").on("value", (snap)=>{
     val ? ("Gewinner: " + val) : "";
 });
 
-/* ========= DEIN SPIEL (hier gekürzt als funktionierende Demo-Version) ========= */
+/* ========= SPIELDATEN ========= */
 
 const players = [
-  "Lamine Yamal",
-  "Kylian Mbappé",
-  "Vinicius Junior",
-  "Erling Haaland",
-  "Jude Bellingham",
-  "Florian Wirtz"
+{ name:"Lamine Yamal", img:"assets/lamine_yamal.jpg" },
+{ name:"Kylian Mbappé", img:"assets/kylian_mbappe.jpg" },
+{ name:"Vinicius Junior", img:"assets/vinicius_junior.jpg" },
+{ name:"Erling Haaland", img:"assets/erling_haaland.jpg" },
+{ name:"Jude Bellingham", img:"assets/jude_bellingham.jpg" },
+{ name:"Michael Olise", img:"assets/michael_olise.jpg" },
+{ name:"Pedri", img:"assets/pedri.jpg" },
+{ name:"Cole Palmer", img:"assets/cole_palmer.jpg" },
+{ name:"Jamal Musiala", img:"assets/jamal_musiala.jpg" },
+{ name:"João Neves", img:"assets/joao_neves.jpg" },
+{ name:"Florian Wirtz", img:"assets/florian_wirtz.jpg" },
+{ name:"Bukayo Saka", img:"assets/bukayo_saka.jpg" },
+{ name:"Pau Cubarsí", img:"assets/pau_cubarsi.jpg" },
+{ name:"Declan Rice", img:"assets/declan_rice.jpg" },
+{ name:"Viktor Gyökeres", img:"assets/viktor_gyokeres.jpg" }
 ];
 
+let selectedCard = null;
 const pool = document.getElementById("pool");
+const timeline = document.getElementById("timeline");
 
-players.forEach(name=>{
+/* ========= ZEITSTRAHL ========= */
+
+for(let i=0;i<15;i++){
+  const slot = document.createElement("div");
+  slot.className = "slot";
+  slot.innerHTML = "Slot " + (i+1);
+
+  slot.onclick = () => {
+    if(!selectedCard) return;
+    if(slot.children.length > 1) return;
+
+    slot.innerHTML = "";
+    slot.appendChild(selectedCard);
+    selectedCard.classList.remove("selected");
+    selectedCard = null;
+  };
+
+  timeline.appendChild(slot);
+}
+
+/* ========= KARTEN ========= */
+
+players.forEach(p => {
+
   const div = document.createElement("div");
   div.className = "cardItem";
-  div.textContent = name;
+
+  div.innerHTML = `
+    <img src="${p.img}" alt="${p.name}">
+    <div>${p.name}</div>
+  `;
 
   div.onclick = () => {
-    alert(name + " gewählt!");
+    if(selectedCard){
+      selectedCard.classList.remove("selected");
+    }
+    selectedCard = div;
+    div.classList.add("selected");
   };
 
   pool.appendChild(div);
 });
+
 </script>
 
 </body>
