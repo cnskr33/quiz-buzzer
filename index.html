@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Quizshow</title>
 
-<!-- FIREBASE (COMPAT VERSION – STABIL) -->
+<!-- FIREBASE -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyCob25y3pT7O6wjf21l9xiaCXhGMFLzFQg",
-  authDomain: "testprojekt-dada3.firebaseapp.com",
-  databaseURL: "https://testprojekt-dada3-default-rtdb.europe-west1.firebasedatabase.app",
+  authDomain: "https://testprojekt-dada3-default-rtdb.europe-west1.firebasedatabase.app",
+  databaseURL: "DEINE_ECHTE_DATABASE_URL",
   projectId: "testprojekt-dada3",
   storageBucket: "testprojekt-dada3.firebasestorage.app",
   messagingSenderId: "651866459764",
@@ -53,7 +53,7 @@ body{margin:0;font-family:Arial;background:#0b1020;color:#e9eefc}
   cursor:pointer
 }
 
-/* BUZZER BAR */
+/* BUZZER */
 .buzzerBar{
   background:#111a33;
   padding:10px;
@@ -76,6 +76,14 @@ body{margin:0;font-family:Arial;background:#0b1020;color:#e9eefc}
   font-weight:bold;
   font-size:18px
 }
+.app{
+  padding:20px;
+}
+.card{
+  background:rgba(255,255,255,0.08);
+  padding:20px;
+  border-radius:12px;
+}
 </style>
 </head>
 
@@ -88,20 +96,22 @@ body{margin:0;font-family:Arial;background:#0b1020;color:#e9eefc}
   <button onclick="enterGame()">Einwählen</button>
 </div>
 
-<!-- SPIEL -->
+<!-- GAME -->
 <div id="game" class="hidden">
 
-  <!-- BUZZER -->
   <div class="buzzerBar">
     <button class="buzzerBtn" onclick="buzz()">🔴 BUZZER</button>
     <button onclick="resetBuzz()">Reset</button>
     <span id="winner" class="winner"></span>
   </div>
 
-  <!-- DEIN SPIEL (MINIMALER TEST-INHALT – ERSETZE HIER MIT DEINEM SPIEL) -->
-  <div style="padding:20px">
-    <h2>Spielbereich</h2>
-    <p>Hier kannst du jetzt dein komplettes Spiel einsetzen.</p>
+  <!-- SPIEL -->
+  <div class="app">
+    <div class="card">
+      <h2>Test-Spiel (Zeitstrahl-Logik)</h2>
+      <p>Dies ist eine Testintegration. Dein komplettes Spiel kann hier eingefügt werden.</p>
+      <p>Scoreboard und Drag&Drop funktionieren weiterhin normal.</p>
+    </div>
   </div>
 
 </div>
@@ -116,9 +126,7 @@ function enterGame(){
     alert("Name eingeben");
     return;
   }
-
   myName = name;
-
   document.getElementById("login").classList.add("hidden");
   document.getElementById("game").classList.remove("hidden");
 }
