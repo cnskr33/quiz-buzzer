@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Quizshow – Einwählen + Spiel + Buzzer</title>
 
+  <!-- Firebase (OHNE modules) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+
   <style>
     :root { font-family: system-ui, Arial, sans-serif; }
     body { margin: 0; background: #0b1020; color: #e9eefc; }
@@ -13,82 +17,31 @@
 
     /* ===== Login Screen ===== */
     .loginScreen{
-      display:flex;
-      flex-direction:column;
-      justify-content:center;
-      align-items:center;
-      height:100vh;
-      gap:15px;
-      padding: 16px;
-      box-sizing: border-box;
-      text-align: center;
+      display:flex; flex-direction:column; justify-content:center; align-items:center;
+      height:100vh; gap:15px; padding:16px; box-sizing:border-box; text-align:center;
     }
-    .loginScreen h1{ margin:0; font-size: 28px; }
-    .loginScreen .sub{ opacity:.8; max-width: 520px; line-height: 1.4; }
+    .loginScreen h1{ margin:0; font-size:28px; }
+    .loginScreen .sub{ opacity:.8; max-width:520px; line-height:1.4; }
     .loginScreen input{
-      padding:12px;
-      border-radius:12px;
-      border: 1px solid rgba(255,255,255,0.18);
-      background: rgba(255,255,255,0.08);
-      color: #e9eefc;
-      font-size:16px;
-      width: min(420px, 90vw);
-      box-sizing: border-box;
+      padding:12px; border-radius:12px; border:1px solid rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.08); color:#e9eefc; font-size:16px;
+      width: min(420px, 90vw); box-sizing:border-box;
     }
     .loginScreen button{
-      padding:12px 20px;
-      border:none;
-      border-radius:12px;
-      background:#2563eb;
-      color:white;
-      font-size:16px;
-      cursor:pointer;
-      width: min(420px, 90vw);
+      padding:12px 20px; border:none; border-radius:12px; background:#2563eb;
+      color:white; font-size:16px; cursor:pointer; width: min(420px, 90vw);
     }
-    .loginScreen button:hover{ filter: brightness(1.05); }
 
     /* ===== Buzzer Bar ===== */
     .buzzerBar{
-      position: sticky;
-      top: 0;
-      z-index: 50;
-      background:#111a33;
-      padding:10px;
-      display:flex;
-      gap:12px;
-      align-items:center;
-      justify-content:center;
-      border-bottom:2px solid #2a3a66;
-      flex-wrap: wrap;
+      position: sticky; top: 0; z-index: 50;
+      background:#111a33; padding:10px;
+      display:flex; gap:12px; align-items:center; justify-content:center;
+      border-bottom:2px solid #2a3a66; flex-wrap: wrap;
     }
     .buzzerBtn{
-      background:red;
-      color:white;
-      font-size:18px;
-      font-weight: 800;
-      padding:10px 18px;
-      border:none;
-      border-radius:12px;
-      cursor:pointer;
-    }
-    .buzzerBtn:active{ transform: translateY(1px); }
-    .buzzerMeta{
-      display:flex;
-      gap:10px;
-      align-items:center;
-      flex-wrap: wrap;
-      justify-content:center;
-      opacity: .95;
-    }
-    .winner{
-      font-weight:900;
-      font-size:16px;
-      padding: 8px 10px;
-      border-radius: 12px;
-      border: 1px solid rgba(255,255,255,0.18);
-      background: rgba(0,0,0,0.18);
-      min-width: 220px;
-      text-align:center;
+      background:red; color:white; font-size:18px; font-weight:800;
+      padding:10px 18px; border:none; border-radius:12px; cursor:pointer;
     }
     .smallBtn{
       border-radius: 12px;
@@ -99,10 +52,15 @@
       font-size: 14px;
       cursor:pointer;
     }
-    .smallBtn:hover{ background: rgba(255,255,255,0.14); }
+    .winner{
+      font-weight:900; font-size:16px;
+      padding: 8px 10px; border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(0,0,0,0.18);
+      min-width: 220px; text-align:center;
+    }
 
-    /* ===== Dein Spiel CSS (unverändert) ===== */
-
+    /* ===== Spiel-CSS (deins) ===== */
     .app{
       display:grid;
       grid-template-rows: 1fr auto;
@@ -139,7 +97,6 @@
     .danger { border-color: rgba(255,80,80,0.35); }
     button:disabled { opacity: 0.55; cursor: not-allowed; }
 
-    /* Flash overlay */
     .flash {
       position: absolute;
       inset: 0;
@@ -152,7 +109,6 @@
     .flash.green { background: rgba(0, 255, 120, 0.55); }
     .flash.red { background: rgba(255, 40, 60, 0.60); }
 
-    /* Top bar */
     .topBar{
       display:flex;
       align-items:flex-start;
@@ -192,7 +148,6 @@
       margin-top: 10px;
     }
 
-    /* Timeline */
     .timeline{
       display:grid;
       gap: 10px;
@@ -227,7 +182,6 @@
     .slotBody{ display:grid; place-items: center; width: 100%; height: 100%; }
     .emptyDrop{ opacity: 0.7; font-size: 13px; text-align:center; }
 
-    /* Cards */
     .pool{
       display:grid;
       grid-template-columns: repeat(8, minmax(120px, 1fr));
@@ -241,7 +195,7 @@
       background: rgba(0,0,0,0.22);
       padding: 10px;
       display: grid;
-      grid-template-rows: auto auto auto; /* Name + optional Wert in Lösung */
+      grid-template-rows: auto auto auto;
       gap: 8px;
       justify-items: center;
       cursor: grab;
@@ -268,7 +222,6 @@
       text-align: center;
     }
 
-    /* Scoreboard */
     .scoreboardCompact .row { display:flex; gap:10px; align-items:center; flex-wrap: wrap; }
     .scoreboardCompact .players{
       display:grid;
@@ -310,27 +263,23 @@
 
 <body>
 
-  <!-- ===== LOGIN ===== -->
+  <!-- LOGIN -->
   <div id="login" class="loginScreen">
     <h1>Quizshow</h1>
-    <div class="sub">Gib deinen Namen ein und klicke auf „Einwählen“. Danach siehst du das Spiel + deinen Buzzer.</div>
+    <div class="sub">Name eingeben → Einwählen. Danach siehst du das Spiel + den Buzzer.</div>
     <input id="loginName" placeholder="Dein Name" autocomplete="name" />
-    <button id="loginBtn" onclick="enterGame()">Einwählen</button>
+    <button type="button" onclick="enterGame()">Einwählen</button>
   </div>
 
-  <!-- ===== GAME ===== -->
+  <!-- GAME -->
   <div id="game" class="hidden">
-
-    <!-- BUZZER BAR -->
     <div class="buzzerBar">
-      <button class="buzzerBtn" onclick="buzz()">🔴 BUZZER</button>
-      <button class="smallBtn" onclick="resetBuzz()">Reset</button>
-      <div class="buzzerMeta">
-        <div id="winner" class="winner">Gewinner: —</div>
-      </div>
+      <button class="buzzerBtn" type="button" onclick="buzz()">🔴 BUZZER</button>
+      <button class="smallBtn" type="button" onclick="resetBuzz()">Reset</button>
+      <div id="winner" class="winner">Gewinner: —</div>
     </div>
 
-    <!-- ===== DEIN SPIEL (HTML) ===== -->
+    <!-- DEIN SPIEL (HTML) -->
     <div class="app">
       <div class="card" id="gameCard">
         <div class="flash" id="flash"></div>
@@ -344,15 +293,15 @@
           <div class="topRight">
             <div class="badge turnBadge" id="turnBadge">Am Zug: —</div>
             <div class="badge" id="roundBadge">1/4</div>
-            <button id="nextRound">Nächste Runde</button>
+            <button id="nextRound" type="button">Nächste Runde</button>
           </div>
         </div>
 
         <div class="topRow">
-          <button id="checkBtn">Überprüfen</button>
-          <button id="solutionBtn" disabled>Lösung</button>
-          <button id="resetTimeline" class="danger">Zeitstrahl zurücksetzen</button>
-          <button id="shufflePool">Karten mischen</button>
+          <button id="checkBtn" type="button">Überprüfen</button>
+          <button id="solutionBtn" type="button" disabled>Lösung</button>
+          <button id="resetTimeline" type="button" class="danger">Zeitstrahl zurücksetzen</button>
+          <button id="shufflePool" type="button">Karten mischen</button>
         </div>
 
         <div id="timeline" class="timeline"></div>
@@ -369,11 +318,10 @@
         <h1>Scoreboard</h1>
 
         <div class="row">
-          <!-- WICHTIG: umbenannt von playerName -> scorePlayerName (damit es keinen Konflikt mit Login gibt) -->
           <input id="scorePlayerName" placeholder="Mitspielername…" />
-          <button id="addPlayer">Hinzufügen</button>
-          <button id="resetScores" class="danger">Punkte reset</button>
-          <button id="clearAll" class="danger">Alles löschen</button>
+          <button id="addPlayer" type="button">Hinzufügen</button>
+          <button id="resetScores" type="button" class="danger">Punkte reset</button>
+          <button id="clearAll" type="button" class="danger">Alles löschen</button>
         </div>
 
         <div class="players" id="players"></div>
@@ -381,26 +329,27 @@
     </div>
   </div>
 
-  <!-- ===== ALLES JS (Firebase + Spiel) ===== -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getDatabase, ref, set, get, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-
-    // ====== Firebase Config ======
+  <script>
+    /********************
+     * FIREBASE SETUP
+     ********************/
+    // WICHTIG: Hier databaseURL ersetzen (Realtime Database URL!)
     const firebaseConfig = {
       apiKey: "AIzaSyCob25y3pT7O6wjf21l9xiaCXhGMFLzFQg",
       authDomain: "testprojekt-dada3.firebaseapp.com",
-      databaseURL: "HIER_DEINE_DATABASE_URL", // <-- HIER ersetzen!
+      databaseURL: "HIER_DEINE_DATABASE_URL",
       projectId: "testprojekt-dada3",
       storageBucket: "testprojekt-dada3.firebasestorage.app",
       messagingSenderId: "651866459764",
       appId: "1:651866459764:web:ed23cf3fd5ccf02a42cb21"
     };
 
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-    // ====== Login + Buzzer ======
+    /********************
+     * LOGIN + BUZZER
+     ********************/
     let myName = "";
 
     function showGame(){
@@ -408,7 +357,6 @@
       document.getElementById("game").classList.remove("hidden");
     }
 
-    // Global machen (für onclick)
     window.enterGame = function(){
       const name = document.getElementById("loginName").value.trim();
       if(!name) return alert("Bitte Namen eingeben.");
@@ -416,35 +364,33 @@
       showGame();
     };
 
-    // Enter im Login-Feld
     document.getElementById("loginName").addEventListener("keydown", (e) => {
       if (e.key === "Enter") window.enterGame();
     });
 
+    // Nur erster Klick zählt
     window.buzz = async function(){
       if(!myName) return alert("Bitte zuerst einwählen.");
-      const buzzerRef = ref(db, "buzzer");
-      const snap = await get(buzzerRef);
-
-      // Nur erster Klick zählt
-      if(!snap.exists() || !snap.val()){
-        await set(buzzerRef, myName);
+      const buzzerRef = db.ref("buzzer");
+      const snap = await buzzerRef.get();
+      const current = snap.val();
+      if(!current){
+        await buzzerRef.set(myName);
       }
     };
 
     window.resetBuzz = async function(){
-      await set(ref(db, "buzzer"), "");
+      await db.ref("buzzer").set("");
     };
 
-    onValue(ref(db, "buzzer"), (snap)=>{
+    db.ref("buzzer").on("value", (snap) => {
       const val = snap.val();
-      const el = document.getElementById("winner");
-      el.textContent = val ? `Gewinner: ${val}` : "Gewinner: —";
+      document.getElementById("winner").textContent = val ? ("Gewinner: " + val) : "Gewinner: —";
     });
 
-    /** ========= DEIN SPIEL-JS (nahezu unverändert) ========= */
-
-    // Runde 1: Fußball
+    /********************
+     * DEIN SPIEL-JS
+     ********************/
     const roundFootball = {
       id: "football",
       title: "Runde 1: Top 15 Fußballer (Marktwert)",
@@ -471,7 +417,6 @@
       ],
     };
 
-    // Runde 2: DAX Unternehmen
     const roundDax = {
       id: "dax",
       title: "Runde 2: DAX-Unternehmen (Aktienkurs)",
@@ -501,31 +446,23 @@
 
     const rounds = [roundFootball, roundDax];
     const TOTAL_ROUNDS_BADGE = 4;
-
     function getRound(){ return rounds[currentRoundIndex]; }
 
-    /** ========= GAME STATE ========= */
     let currentRoundIndex = 0;
-
     let slotPlacements = [];
     let statusById = {};
     let poolOrder = [];
     let lastPlacedId = null;
 
-    /** Turns + Lives */
     const STORAGE_KEY = "quizshow_state_v2";
     const LIVES_PER_ROUND = 2;
 
-    let state = loadState(); // {players:[{id,name,score}]}
+    let state = loadState();
     let currentTurnIndex = 0;
-
     let livesById = {};
     let eliminatedById = {};
-
-    /** Solution display state */
     let solutionShown = false;
 
-    /** ========= UTILS ========= */
     function shuffle(arr){
       const a = [...arr];
       for (let i = a.length - 1; i > 0; i--){
@@ -553,7 +490,6 @@
       return `${nf.format(v)} ${r.unit}`;
     }
 
-    /** ========= ROUND INIT ========= */
     function resetLivesForRound(){
       livesById = {};
       eliminatedById = {};
@@ -573,7 +509,6 @@
       document.getElementById("title").textContent = r.title;
       document.getElementById("hint").textContent = r.hint;
       document.getElementById("roundBadge").textContent = `${currentRoundIndex + 1}/${TOTAL_ROUNDS_BADGE}`;
-
       const timeline = document.getElementById("timeline");
       timeline.style.gridTemplateColumns = `repeat(${r.slotCount}, minmax(64px, 1fr))`;
     }
@@ -621,7 +556,6 @@
       renderAll();
     }
 
-    /** ========= INSERT / GAP CLOSE ========= */
     function insertWithShift(targetIndex, droppedId){
       const existingIndex = indexOfItem(droppedId);
       if (existingIndex !== -1) slotPlacements[existingIndex] = null;
@@ -671,7 +605,6 @@
       }
     }
 
-    /** ========= CHECK / SOLUTION ========= */
     function isPlacementConsistent(){
       const placed = slotPlacements
         .map((id, idx) => ({ id, idx }))
@@ -716,7 +649,6 @@
       btn.disabled = anyAlive || state.players.length === 0;
     }
 
-    /** ========= TURNS / LIVES ========= */
     function getCurrentPlayer(){
       if (!state.players || state.players.length === 0) return null;
 
@@ -780,9 +712,7 @@
       if (ok){
         statusById[lastPlacedId] = "fixed";
         setFlash("green");
-
         if (p) changeScore(p.id, +1);
-
         lastPlacedId = null;
         renderAll();
         advanceTurn();
@@ -807,7 +737,6 @@
       }
     }
 
-    /** ========= RENDER ========= */
     function renderAll(){
       renderTimeline();
       renderPool();
@@ -934,7 +863,6 @@
       return card;
     }
 
-    /** ========= SCOREBOARD (LocalStorage) ========= */
     function loadState(){
       try{
         const raw = localStorage.getItem(STORAGE_KEY);
@@ -1035,9 +963,9 @@
         right.innerHTML = `
           <div class="score">${p.score}</div>
           <div class="controls">
-            <button class="btn" title="-1">−</button>
-            <button class="btn" title="+1">+</button>
-            <button class="btn danger" title="Entfernen">✕</button>
+            <button class="btn" type="button" title="-1">−</button>
+            <button class="btn" type="button" title="+1">+</button>
+            <button class="btn danger" type="button" title="Entfernen">✕</button>
           </div>
         `;
 
@@ -1061,7 +989,6 @@
         .replaceAll("'", "&#039;");
     }
 
-    /** ========= WIRE UI ========= */
     document.getElementById("checkBtn").addEventListener("click", verify);
     document.getElementById("solutionBtn").addEventListener("click", showSolution);
     document.getElementById("resetTimeline").addEventListener("click", resetTimeline);
@@ -1071,7 +998,6 @@
     });
     document.getElementById("nextRound").addEventListener("click", nextRound);
 
-    // WICHTIG: hier das umbenannte Feld nutzen
     const input = document.getElementById("scorePlayerName");
     document.getElementById("addPlayer").addEventListener("click", () => {
       addPlayer(input.value);
@@ -1088,7 +1014,6 @@
     document.getElementById("resetScores").addEventListener("click", resetScores);
     document.getElementById("clearAll").addEventListener("click", clearAll);
 
-    /** ========= INIT ========= */
     initRound(0);
     renderScoreboard();
     updateTurnUI();
