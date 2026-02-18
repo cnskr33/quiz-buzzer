@@ -201,24 +201,82 @@ let lastPlaced = null;
 const pool = document.getElementById("pool");
 const timeline = document.getElementById("timeline");
 
-/* ========= ZEITSTRAHL ========= */
+const SLOT_COUNT = 15;
+const slots = [];
 
-for(let i=0;i<15;i++){
+/* ========= ZEITSTRAHL MIT SHIFT ========= */
+
+for(let i=0;i<SLOT_COUNT;i++){
   const slot = document.createElement("div");
   slot.className = "slot";
   slot.dataset.index = i;
 
   slot.onclick = () => {
     if(!selectedCard) return;
-    if(slot.children.length > 0) return;
 
-    slot.appendChild(selectedCard);
+    const idx = parseInt(slot.dataset.index);
+    placeWithShift(idx, selectedCard);
+
     lastPlaced = selectedCard;
     selectedCard.classList.remove("selected");
     selectedCard = null;
   };
 
   timeline.appendChild(slot);
+  slots.push(slot);
+}
+
+function placeWithShift(targetIndex, card){
+
+  removeIfExists(card);
+
+  if(slots[targetIndex].children.length === 0){
+    slots[targetIndex].appendChild(card);
+    return;
+  }
+
+  let emptyRight = -1;
+  for(let i=targetIndex;i<SLOT_COUNT;i++){
+    if(slots[i].children.length === 0){
+      emptyRight = i;
+      break;
+    }
+  }
+
+  if(emptyRight !== -1){
+    for(let i=emptyRight;i>targetIndex;i--){
+      if(slots[i-1].children.length > 0){
+        slots[i].appendChild(slots[i-1].children[0]);
+      }
+    }
+    slots[targetIndex].appendChild(card);
+    return;
+  }
+
+  let emptyLeft = -1;
+  for(let i=targetIndex;i>=0;i--){
+    if(slots[i].children.length === 0){
+      emptyLeft = i;
+      break;
+    }
+  }
+
+  if(emptyLeft !== -1){
+    for(let i=emptyLeft;i<targetIndex;i++){
+      if(slots[i+1].children.length > 0){
+        slots[i].appendChild(slots[i+1].children[0]);
+      }
+    }
+    slots[targetIndex].appendChild(card);
+  }
+}
+
+function removeIfExists(card){
+  for(const s of slots){
+    if(s.children.length > 0 && s.children[0] === card){
+      s.innerHTML = "";
+    }
+  }
 }
 
 /* ========= KARTEN ========= */
@@ -253,16 +311,15 @@ function verifyPlacement(){
 
   if(!lastPlaced) return;
 
-  const slots = document.querySelectorAll(".slot");
   let placements = [];
 
-  slots.forEach((slot, index) => {
+  slots.forEach((slot, index)=>{
     if(slot.children.length > 0){
       const card = slot.children[0];
       placements.push({
         index:index,
-        value: parseFloat(card.dataset.value),
-        element: card
+        value:parseFloat(card.dataset.value),
+        element:card
       });
     }
   });
@@ -287,8 +344,6 @@ function verifyPlacement(){
   lastPlaced = null;
 }
 
-/* ========= FALSCH ========= */
-
 function sendBack(card){
   card.style.outline = "3px solid red";
   setTimeout(()=>{
@@ -302,4 +357,3 @@ function sendBack(card){
 
 </body>
 </html>
-
