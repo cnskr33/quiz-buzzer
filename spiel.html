@@ -190,9 +190,16 @@ renderPool();
 
 function renderTimeline(){
 const timeline=document.getElementById("timeline");
-timeline.style.gridTemplateColumns=`repeat(${slotPlacements.length},minmax(64px,1fr))`;
+
+// Wenn noch kein State da ist, trotzdem Slots anzeigen
+const len = (slotPlacements && slotPlacements.length) ? slotPlacements.length : rounds[currentRound].items.length;
+
+timeline.style.gridTemplateColumns=`repeat(${len},minmax(64px,1fr))`;
 timeline.innerHTML="";
-slotPlacements.forEach((id,i)=>{
+
+for(let i=0;i<len;i++){
+  const id = slotPlacements[i] || null;
+  
 const slot=document.createElement("div");
 slot.className="slot";
 const header=document.createElement("div");
@@ -215,7 +222,7 @@ insertWithShift(i,dropped);
 renderAll();
 };
 timeline.appendChild(slot);
-});
+}
 }
 
 function renderPool(){
@@ -375,10 +382,14 @@ db.ref("game/host").on("value", snap => {
     if(cur === null) return 0;
     return cur;
   }).then(() => {
-    db.ref("game/currentRound").once("value").then(s => {
-      currentRound = s.val() ?? 0;
+   db.ref("game/currentRound").once("value").then(s => {
+  currentRound = s.val() ?? 0;
+
+  // State nur erzeugen, wenn noch keiner existiert
+  db.ref("game/state").once("value").then(st => {
+    if(!st.exists()){
       initRound();
-    });
+    }
   });
 });
 
