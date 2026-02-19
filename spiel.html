@@ -146,7 +146,9 @@ let slotPlacements=[];
 let statusById={};
 let poolOrder=[];
 let lastPlacedId=null;
+window.isHost = false;
 
+  
 function initRound(){
   const r = rounds[currentRound];
   document.getElementById("title").innerText = r.title;
