@@ -62,6 +62,18 @@ playerRef.onDisconnect().remove();
 hostRef.on("value", snap => {
   const hostId = snap.val();
   window.isHost = (hostId === playerId);
+
+  if(window.isHost){
+    db.ref("game/currentRound").once("value").then(snap => {
+      let round = snap.val();
+      if(round === null){
+        round = 0;
+        db.ref("game/currentRound").set(0);
+      }
+      currentRound = round;
+      initRound();
+    });
+  }
 });
 
 
@@ -375,18 +387,11 @@ db.ref("game/host").on("value", snap => {
 // Globale Rundensynchronisation
 db.ref("game/currentRound").on("value", snap => {
   const value = snap.val();
+  if(value === null) return;
 
-  if(value === null){
-    currentRound = 0;
-  } else {
-    currentRound = value;
-  }
-
-  // Nur Host erzeugt neuen State
-  if(window.isHost){
-    initRound();
-  }
+  currentRound = value;
 });
+
 
 // Globale Spielstate Synchronisation
 db.ref("game/state").on("value", snap => {
