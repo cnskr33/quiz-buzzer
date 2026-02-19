@@ -1,191 +1,83 @@
 <!doctype html>
 <html lang="de">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Quizshow – Login</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quizshow Login</title>
 
-  <!-- FIREBASE (Compat) -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 
-  <script>
-    // ✅ Firebase Config (databaseURL MUSS deine echte Realtime-DB URL sein)
-    const firebaseConfig = {
-      apiKey: "AIzaSyCob25y3pT7O6wjf21l9xiaCXhGMFLzFQg",
-      authDomain: "https://testprojekt-dada3-default-rtdb.europe-west1.firebasedatabase.app",
-      databaseURL: "HIER_DEINE_ECHTE_DATABASE_URL_EINTRAGEN",
-      projectId: "testprojekt-dada3",
-      storageBucket: "testprojekt-dada3.firebasestorage.app",
-      messagingSenderId: "651866459764",
-      appId: "1:651866459764:web:ed23cf3fd5ccf02a42cb21"
-    };
+<script>
+const firebaseConfig = {
+  apiKey: "DEIN_API_KEY",
+  authDomain: "DEIN_PROJECT.firebaseapp.com",
+  databaseURL: "https://testprojekt-dada3-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "DEIN_PROJECT_ID",
+  storageBucket: "DEIN_PROJECT.appspot.com",
+  messagingSenderId: "XXXX",
+  appId: "XXXX"
+};
 
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-  </script>
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
-  <style>
-    body{margin:0;font-family:Arial;background:#0b1020;color:#e9eefc}
-    .hidden{display:none}
+let myName = "";
 
-    .loginScreen{
-      display:flex;
-      flex-direction:column;
-      justify-content:center;
-      align-items:center;
-      height:100vh;
-      gap:15px;
-      padding:20px;
-      box-sizing:border-box;
-      text-align:center;
+function enterGame(){
+  const name = document.getElementById("loginName").value.trim();
+  if(!name) return alert("Name eingeben");
+
+  db.ref("players").once("value").then(snap=>{
+    if(snap.numChildren() >= 5){
+      alert("Spiel ist voll (max. 5 Spieler)");
+      return;
     }
 
-    .loginScreen input{
-      padding:12px;
-      border-radius:10px;
-      border:1px solid rgba(255,255,255,0.2);
-      background:rgba(255,255,255,0.08);
-      color:#e9eefc;
-      font-size:16px;
-      width:min(360px, 90vw);
-      outline:none;
-    }
+    myName = name;
 
-    .loginScreen button{
-      padding:12px 20px;
-      border:none;
-      border-radius:10px;
-      background:#2563eb;
-      color:white;
-      font-size:16px;
-      cursor:pointer;
-      width:min(360px, 90vw);
-    }
-    .loginScreen button:hover{filter:brightness(1.08)}
+    db.ref("players/" + name).set({
+      lives: 2,
+      score: 0
+    });
 
-    .buzzerBar{
-      margin-top:20px;
-      display:flex;
-      gap:10px;
-      align-items:center;
-      justify-content:center;
-      flex-wrap:wrap;
-    }
+    window.location.href = "spiel.html?name=" + encodeURIComponent(name);
+  });
+}
+</script>
 
-    .buzzerBtn{
-      background:#dc2626;
-      color:white;
-      font-size:18px;
-      padding:12px 18px;
-      border:none;
-      border-radius:12px;
-      cursor:pointer;
-    }
-    .buzzerBtn:active{transform:scale(0.98)}
-
-    .resetBtn{
-      background:rgba(255,255,255,0.10);
-      color:#e9eefc;
-      border:1px solid rgba(255,255,255,0.18);
-      padding:12px 14px;
-      border-radius:12px;
-      cursor:pointer;
-    }
-
-    #winner{
-      font-weight:800;
-      font-size:16px;
-      opacity:0.95;
-    }
-
-    .hint{
-      opacity:0.75;
-      font-size:13px;
-      margin-top:6px;
-      max-width:520px;
-      line-height:1.4;
-    }
-  </style>
+<style>
+body{
+  background:#0b1020;
+  color:white;
+  font-family:Arial;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+  gap:15px;
+}
+input{
+  padding:12px;
+  border-radius:8px;
+  border:none;
+}
+button{
+  padding:12px 20px;
+  border:none;
+  border-radius:8px;
+  background:#2563eb;
+  color:white;
+  cursor:pointer;
+}
+</style>
 </head>
-
 <body>
 
-  <div class="loginScreen">
-    <h1>Quizshow</h1>
+<h1>Quizshow</h1>
+<input id="loginName" placeholder="Dein Name">
+<button onclick="enterGame()">Einwählen</button>
 
-    <input id="loginName" placeholder="Dein Name" autocomplete="off" />
-    <button onclick="enterGame()">Einwählen</button>
-
-    <div class="hint">
-      Nach dem Einwählen wirst du automatisch auf die Spielseite <b>spiel.html</b> weitergeleitet.
-    </div>
-
-    <hr style="width:min(520px, 90vw); border:none; border-top:1px solid rgba(255,255,255,0.12); margin:22px 0;">
-
-    <div class="buzzerBar">
-      <button class="buzzerBtn" onclick="buzz()">🔴 BUZZER</button>
-      <button class="resetBtn" onclick="resetBuzz()">Reset</button>
-      <span id="winner"></span>
-    </div>
-
-    <div class="hint">
-      Buzzer geht auch schon hier (z.B. zum Testen). Im Spiel kannst du ihn später auch nochmal einbauen.
-    </div>
-  </div>
-
-  <script>
-    // Enter auch zum Einwählen
-    document.getElementById("loginName").addEventListener("keydown", (e) => {
-      if (e.key === "Enter") enterGame();
-    });
-
-    function enterGame(){
-      const name = document.getElementById("loginName").value.trim();
-      if(!name){
-        alert("Bitte Name eingeben");
-        return;
-      }
-
-      // Name speichern (damit spiel.html ihn kennt)
-      localStorage.setItem("quiz_name", name);
-
-      // ✅ Weiterleitung (gleiches Verzeichnis)
-      window.location.href = "spiel.html";
-    }
-
-    async function buzz(){
-      const myName = localStorage.getItem("quiz_name") || document.getElementById("loginName").value.trim();
-      if(!myName){
-        alert("Gib erst deinen Namen ein 🙂");
-        return;
-      }
-
-      const buzzerRef = db.ref("buzzer");
-      const snap = await buzzerRef.get();
-
-      // Nur der erste gewinnt
-      if(!snap.exists() || !snap.val()){
-        buzzerRef.set(myName);
-      }
-    }
-
-    function resetBuzz(){
-      db.ref("buzzer").set("");
-    }
-
-    db.ref("buzzer").on("value", (snap)=>{
-      const val = snap.val();
-      const el = document.getElementById("winner");
-      el.textContent = val ? ("Gewinner: " + val) : "";
-    });
-  </script>
-
-  <!--
-    HINWEIS (GitHub Pages):
-    - Wenn index.html und spiel.html im selben Ordner liegen → passt "spiel.html".
-    - Wenn spiel.html in einem Unterordner liegt, z.B. /game/spiel.html → dann musst du unten ändern:
-      window.location.href = "game/spiel.html";
-  -->
 </body>
 </html>
