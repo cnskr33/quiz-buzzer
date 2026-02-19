@@ -263,9 +263,16 @@ const j=Math.floor(Math.random()*(i+1));
 }
 
 function nextRound(){
-currentRound++;
-if(currentRound>=rounds.length)currentRound=0;
-initRound();
+  if(!window.isHost) return;
+
+  const roundRef = db.ref("game/currentRound");
+
+  roundRef.transaction(current => {
+    if(current === null) return 1;
+    let next = current + 1;
+    if(next >= rounds.length) next = 0;
+    return next;
+  });
 }
   
 function resetPlayers(){
@@ -312,6 +319,19 @@ db.ref("game/host").on("value", snap => {
     if(nextBtn) nextBtn.style.display = "none";
     if(resetBtn) resetBtn.style.display = "none";
   }
+});
+  
+// Globale Rundensynchronisation
+db.ref("game/currentRound").on("value", snap => {
+  const value = snap.val();
+
+  if(value === null){
+    currentRound = 0;
+  } else {
+    currentRound = value;
+  }
+
+  initRound();
 });
 
 </script>
