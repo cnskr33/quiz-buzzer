@@ -39,7 +39,27 @@ playerRef.set({
   joinedAt: Date.now()
 });
 
+// HOST LOGIK
+const hostRef = db.ref("game/host");
+
+hostRef.transaction(currentHost => {
+  if(currentHost === null){
+    return playerId; // erster Spieler wird Host
+  }
+  return currentHost;
+});
+
+// Host löschen wenn er disconnectet
 playerRef.onDisconnect().remove();
+
+hostRef.on("value", snap => {
+  const hostId = snap.val();
+  window.isHost = (hostId === playerId);
+});
+
+
+playerRef.onDisconnect().remove();
+
 </script>
 
 <style>
