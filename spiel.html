@@ -1,903 +1,245 @@
 <!doctype html>
 <html lang="de">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Quizshow – Spiel</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quizshow – Spiel</title>
 
-  <!-- Firebase (compat) -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 
-  <script>
-    // ========= FIREBASE CONFIG (HIER DEINE ECHTEN DATEN EINTRAGEN) =========
-    const firebaseConfig = {
-      apiKey: "DEIN_API_KEY",
-      authDomain: "DEIN_PROJECT.firebaseapp.com",
-      databaseURL: "https://testprojekt-dada3-default-rtdb.europe-west1.firebasedatabase.app",
-      projectId: "DEIN_PROJECT_ID",
-      storageBucket: "DEIN_PROJECT.appspot.com",
-      messagingSenderId: "XXXX",
-      appId: "XXXX"
-    };
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCob25y3pT7O6wjf21l9xiaCXhGMFLzFQg",
+  authDomain: "testprojekt-dada3.firebaseapp.com",
+  databaseURL: "https://testprojekt-dada3-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "testprojekt-dada3",
+  storageBucket: "testprojekt-dada3.appspot.com",
+  messagingSenderId: "651866459764",
+  appId: "1:651866459764:web:ed23cf3fd5ccf02a42cb21"
+};
 
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-  </script>
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
-  <style>
-    :root { font-family: system-ui, Arial, sans-serif; }
-    body { margin: 0; background: #0b1020; color: #e9eefc; }
+/* ==== PLAYER CHECK (URL PARAM) ==== */
+const urlParams = new URLSearchParams(window.location.search);
+const playerId = urlParams.get("id");
 
-    /* Top players bar */
-    .playersBar{
-      position: sticky;
-      top: 0;
-      z-index: 50;
-      background: rgba(12, 18, 40, 0.92);
-      border-bottom: 1px solid rgba(255,255,255,0.12);
-      backdrop-filter: blur(8px);
-      padding: 10px 12px;
-      display:flex;
-      gap:10px;
-      align-items:center;
-      flex-wrap: wrap;
-    }
-    .pCard{
-      display:flex;
-      flex-direction:column;
-      gap:4px;
-      padding: 8px 10px;
-      border-radius: 12px;
-      border: 1px solid rgba(255,255,255,0.14);
-      background: rgba(0,0,0,0.22);
-      min-width: 140px;
-    }
-    .pName{ font-weight: 900; font-size: 13.5px; }
-    .pMeta{ opacity:.9; font-size: 13px; display:flex; justify-content:space-between; gap:10px; }
-    .pActive{ outline: 2px solid rgba(120, 190, 255, 0.55); outline-offset: 2px; }
-    .meTag{ font-size: 12px; opacity:.85; }
+if(!playerId){
+  document.body.innerHTML = "<h2>Kein Name übergeben. Bitte über index.html einwählen</h2>";
+  throw new Error("Kein Spieler");
+}
 
-    .app{
-      display:grid;
-      grid-template-rows: 1fr auto;
-      gap:16px;
-      padding:16px;
-      height: calc(100vh - 60px);
-      box-sizing:border-box;
-    }
+const playerRef = db.ref("players/" + playerId);
 
-    .card{
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 16px;
-      padding: 16px;
-      overflow: auto;
-      position: relative;
-    }
+/* Spieler automatisch entfernen wenn Tab geschlossen */
+playerRef.onDisconnect().remove();
+</script>
 
-    h1 { font-size: 22px; margin: 0; }
-    h2 { font-size: 16px; margin: 14px 0 10px; opacity: 0.92; }
-    .hint { opacity: 0.75; font-size: 13px; line-height: 1.4; margin: 6px 0 0; }
-
-    input, button{
-      border-radius: 12px;
-      border: 1px solid rgba(255,255,255,0.18);
-      background: rgba(255,255,255,0.08);
-      color: #e9eefc;
-      padding: 10px 12px;
-      font-size: 14px;
-    }
-    input { flex: 1; min-width: 180px; }
-    button { cursor:pointer; }
-    button:hover { background: rgba(255,255,255,0.14); }
-    .danger { border-color: rgba(255,80,80,0.35); }
-    button:disabled { opacity: 0.55; cursor: not-allowed; }
-
-    /* Flash overlay */
-    .flash {
-      position: absolute;
-      inset: 0;
-      border-radius: 16px;
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity 140ms ease;
-    }
-    .flash.on { opacity: 0.28; }
-    .flash.green { background: rgba(0, 255, 120, 0.55); }
-    .flash.red { background: rgba(255, 40, 60, 0.60); }
-
-    /* Top bar */
-    .topBar{
-      display:flex;
-      align-items:flex-start;
-      justify-content: space-between;
-      gap: 12px;
-    }
-    .topRight{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-    }
-    .badge{
-      padding: 8px 10px;
-      border-radius: 12px;
-      border: 1px solid rgba(255,255,255,0.18);
-      background: rgba(0,0,0,0.18);
-      font-weight: 800;
-      min-width: 62px;
-      text-align:center;
-    }
-    .turnBadge{
-      max-width: 460px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      text-align: left;
-      min-width: 260px;
-    }
-
-    .topRow{
-      display:flex;
-      gap:10px;
-      align-items:center;
-      flex-wrap: wrap;
-      margin-top: 10px;
-    }
-
-    /* Timeline */
-    .timeline{
-      display:grid;
-      gap: 10px;
-      align-items: stretch;
-      margin-top: 12px;
-    }
-
-    .slot{
-      border-radius: 16px;
-      border: 1px dashed rgba(255,255,255,0.22);
-      background: rgba(0,0,0,0.18);
-      min-height: 170px;
-      padding: 10px;
-      display: grid;
-      grid-template-rows: 24px 1fr;
-      gap: 10px;
-      user-select: none;
-    }
-
-    .slotHeader{
-      height: 24px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      font-weight: 900;
-      font-size: 14px;
-      opacity: 0.95;
-    }
-
-    .slot.dropOver { outline: 2px solid rgba(255,255,255,0.35); outline-offset: 2px; }
-
-    .slotBody{ display:grid; place-items: center; width: 100%; height: 100%; }
-    .emptyDrop{ opacity: 0.7; font-size: 13px; text-align:center; }
-
-    /* Cards */
-    .pool{
-      display:grid;
-      grid-template-columns: repeat(8, minmax(120px, 1fr));
-      gap: 10px;
-      margin-top: 8px;
-    }
-
-    .cardItem{
-      border-radius: 16px;
-      border: 1px solid rgba(255,255,255,0.12);
-      background: rgba(0,0,0,0.22);
-      padding: 10px;
-      display: grid;
-      grid-template-rows: auto auto auto;
-      gap: 8px;
-      justify-items: center;
-      cursor: grab;
-      user-select: none;
-    }
-    .cardItem:active { cursor: grabbing; }
-
-    .cardItem[data-status="pending"] { outline: 2px solid rgba(255, 220, 80, 0.55); outline-offset: 2px; }
-    .cardItem[data-status="fixed"]   { outline: 2px solid rgba(120, 255, 180, 0.35); outline-offset: 2px; }
-
-    .avatar{
-      width: 72px;
-      height: 72px;
-      max-width: 100%;
-      border-radius: 12px;
-      border: 1px solid rgba(255,255,255,0.14);
-      background: rgba(255,255,255,0.08);
-      object-fit: cover;
-    }
-    .label{
-      font-weight: 900;
-      font-size: 12.8px;
-      line-height: 1.2;
-      text-align: center;
-    }
-
-    /* Bottom area card */
-    .footerCard{
-      display:flex;
-      gap:10px;
-      flex-wrap: wrap;
-      align-items:center;
-      justify-content: space-between;
-    }
-    .smallHint{ opacity:.75; font-size: 13px; }
-  </style>
+<style>
+body{margin:0;font-family:Arial;background:#0b1020;color:#e9eefc}
+.app{padding:20px}
+.hidden{display:none}
+.timeline{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px}
+.slot{border:2px dashed #888;padding:10px;min-width:120px;min-height:160px;text-align:center}
+.card{background:#1c2545;padding:10px;border-radius:8px;cursor:grab}
+.card img{width:80px;height:80px;object-fit:cover;border-radius:8px}
+.pool{display:flex;gap:10px;flex-wrap:wrap}
+.btn{padding:8px 12px;margin:5px;background:#2563eb;color:white;border:none;border-radius:6px;cursor:pointer}
+.hearts{font-size:18px}
+.playerBox{background:#1c2545;padding:10px;border-radius:8px;margin:5px}
+</style>
 </head>
 
 <body>
+<div class="app">
 
-  <!-- Spieler-Bar (aus Firebase Join) -->
-  <div class="playersBar" id="playersBar">
-    <div style="opacity:.8;font-size:13px;">Spieler laden…</div>
-  </div>
+<h2 id="roundTitle">Runde 1</h2>
 
-  <div class="app">
-    <div class="card" id="gameCard">
-      <div class="flash" id="flash"></div>
+<button class="btn" onclick="randomStart()">Zufällig</button>
+<button class="btn" onclick="checkOrder()">Überprüfen</button>
+<button class="btn" onclick="nextRound()">Nächste Runde</button>
 
-      <div class="topBar">
-        <div>
-          <h1 id="title">Runde</h1>
-          <div class="hint" id="hint"></div>
-        </div>
+<hr>
 
-        <div class="topRight">
-          <div class="badge turnBadge" id="turnBadge">Am Zug: —</div>
-          <div class="badge" id="roundBadge">1/4</div>
-          <button id="randomBtn" title="Startkarte neu zufällig + Pool mischen">Zufällig</button>
-          <button id="nextRound">Nächste Runde</button>
-        </div>
-      </div>
+<h3>Zeitstrahl</h3>
+<div id="timeline" class="timeline"></div>
 
-      <div class="topRow">
-        <button id="checkBtn">Überprüfen</button>
-        <button id="solutionBtn" disabled>Lösung</button>
-        <button id="resetTimeline" class="danger">Zeitstrahl zurücksetzen</button>
-        <button id="shufflePool">Karten mischen</button>
-      </div>
+<h3>Pool</h3>
+<div id="pool" class="pool"></div>
 
-      <div id="timeline" class="timeline"></div>
+<hr>
 
-      <h2>Pool</h2>
-      <div id="pool" class="pool"></div>
+<h3>Spieler</h3>
+<div id="players"></div>
 
-      <div class="hint" style="margin-top:10px;">
-        Gelb = zuletzt gesetzte Karte · Grün = bestätigt/fix · Werte sieht man nur in der Lösung
-      </div>
-    </div>
+</div>
 
-    <div class="card footerCard">
-      <div>
-        <div style="font-weight:900;">Info</div>
-        <div class="smallHint" id="meInfo"></div>
-      </div>
-      <div class="smallHint">
-        Tipp: Bilder müssen im Repo unter <b>/assets</b> liegen (wie du es schon gemacht hast).
-      </div>
-    </div>
-  </div>
+<script>
+/* ===========================
+   RUNDEN DATEN
+=========================== */
 
-  <script>
-    /** =======================
-     *  SPIELER (Firebase Join)
-     *  ======================= */
-    const urlParams = new URLSearchParams(window.location.search);
-    const MY_NAME = (urlParams.get("name") || "").trim();
+const rounds = [
 
-    if(!MY_NAME){
-      alert("Kein Name übergeben. Bitte über index.html einwählen.");
-      // zur Sicherheit zurück:
-      window.location.href = "index.html";
-    }
+{
+title:"Runde 1 – Marktwerte Fußball",
+unit:"Mio €",
+items:[
+{ id:"yamal", name:"Lamine Yamal", value:258.4, img:"assets/lamine_yamal.jpg"},
+{ id:"mbappe", name:"Kylian Mbappé", value:192.1, img:"assets/kylian_mbappe.jpg"},
+{ id:"vinicius", name:"Vinicius Junior", value:182.7, img:"assets/vinicius_junior.jpg"},
+{ id:"haaland", name:"Erling Haaland", value:177.9, img:"assets/erling_haaland.jpg"},
+{ id:"bellingham", name:"Jude Bellingham", value:177.1, img:"assets/jude_bellingham.jpg"},
+{ id:"olise", name:"Michael Olise", value:156.7, img:"assets/michael_olise.jpg"},
+{ id:"pedri", name:"Pedri", value:142.3, img:"assets/pedri.jpg"},
+{ id:"palmer", name:"Cole Palmer", value:138.7, img:"assets/cole_palmer.jpg"},
+{ id:"musiala", name:"Jamal Musiala", value:130.7, img:"assets/jamal_musiala.jpg"},
+{ id:"wirtz", name:"Florian Wirtz", value:126.5, img:"assets/florian_wirtz.jpg"},
+{ id:"saka", name:"Bukayo Saka", value:123.0, img:"assets/bukayo_saka.jpg"},
+{ id:"cubarsi", name:"Pau Cubarsí", value:122.9, img:"assets/pau_cubarsi.jpg"},
+{ id:"rice", name:"Declan Rice", value:121.1, img:"assets/declan_rice.jpg"},
+{ id:"gyokeres", name:"Viktor Gyökeres", value:120.1, img:"assets/viktor_gyokeres.jpg"},
+{ id:"joaoneves", name:"João Neves", value:129.7, img:"assets/joao_neves.jpg"}
+]
+},
 
-    document.getElementById("meInfo").textContent = `Du bist eingeloggt als: ${MY_NAME}`;
+{
+title:"Runde 2 – Kino Umsätze (Mrd $)",
+unit:"Mrd $",
+items:[
+{ id:"avatar", name:"Avatar", value:2.9238, img:"assets/avatar.jpg"},
+{ id:"endgame", name:"Avengers Endgame", value:2.7994, img:"assets/avengers_endgame.jpg"},
+{ id:"titanic", name:"Titanic", value:2.2772, img:"assets/titanic.jpg"},
+{ id:"allesstehtkopf", name:"Alles steht Kopf 2", value:1.6989, img:"assets/alles_steht_kopf_2.jpg"},
+{ id:"harry", name:"Harry Potter 7.2", value:1.3425, img:"assets/harry_potter.jpg"},
+{ id:"mario", name:"Super Mario Bros", value:1.3626, img:"assets/super_mario_bros.jpg"},
+{ id:"lion", name:"König der Löwen", value:1.6630, img:"assets/koenig_der_loewen.jpg"},
+{ id:"starwars", name:"Star Wars 7", value:2.0713, img:"assets/star_wars.jpg"},
+{ id:"frozen", name:"Die Eiskönigin", value:1.2864, img:"assets/eiskoenigin.jpg"},
+{ id:"minions", name:"Minions", value:1.1675, img:"assets/minions.jpg"},
+{ id:"darkknight", name:"Dark Knight Rises", value:1.0852, img:"assets/dark_knight.jpg"},
+{ id:"dorie", name:"Findet Dorie", value:1.0293, img:"assets/findet_dorie.jpg"},
+{ id:"oppenheimer", name:"Oppenheimer", value:0.9762, img:"assets/oppenheimer.jpg"},
+{ id:"inception", name:"Inception", value:0.8499, img:"assets/inception.jpg"},
+{ id:"fast7", name:"Fast & Furious 7", value:1.5198, img:"assets/fast_furious.jpg"}
+]
+}
 
-    const LIVES_PER_ROUND = 2;
+];
 
-    let firebasePlayers = []; // [{name, lives, score, joinedAt}]
-    let currentTurnIndex = 0; // lokal (Gamemaster/Host steuert)
+let currentRound=0;
+let placements=[];
+let pool=[];
 
-    function renderPlayersBar(){
-      const bar = document.getElementById("playersBar");
-      bar.innerHTML = "";
+function initRound(){
+const r=rounds[currentRound];
+document.getElementById("roundTitle").innerText=r.title;
+placements=[];
+pool=[...r.items];
+shuffle(pool);
+randomStart();
+render();
+}
 
-      if(firebasePlayers.length === 0){
-        bar.innerHTML = `<div style="opacity:.8;font-size:13px;">Noch keine Spieler…</div>`;
-        return;
-      }
+function randomStart(){
+const r=rounds[currentRound];
+placements=[];
+pool=[...r.items];
+shuffle(pool);
+const randomItem=pool.pop();
+placements.push(randomItem);
+render();
+}
 
-      const current = getCurrentPlayer();
-      for(const p of firebasePlayers){
-        const div = document.createElement("div");
-        div.className = "pCard" + (current && current.name === p.name ? " pActive" : "");
-        const hearts = "❤️".repeat(p.lives) + "🤍".repeat(Math.max(0, LIVES_PER_ROUND - p.lives));
-        div.innerHTML = `
-          <div class="pName">${escapeHtml(p.name)} ${p.name === MY_NAME ? `<span class="meTag">(du)</span>` : ""}</div>
-          <div class="pMeta">
-            <span>${hearts}</span>
-            <span>🏆 ${p.score ?? 0}</span>
-          </div>
-        `;
-        bar.appendChild(div);
-      }
-    }
-
-    function syncPlayers(){
-      db.ref("players").on("value", snap => {
-        const list = [];
-        snap.forEach(child => {
-          const val = child.val() || {};
-          list.push({
-            name: child.key,
-            lives: Number(val.lives ?? LIVES_PER_ROUND),
-            score: Number(val.score ?? 0),
-            joinedAt: Number(val.joinedAt ?? 0)
-          });
-        });
-
-        // stabile Reihenfolge: nach joinedAt, fallback name
-        list.sort((a,b) => (a.joinedAt - b.joinedAt) || a.name.localeCompare(b.name));
-        firebasePlayers = list;
-
-        // Turn-Index im Rahmen halten
-        if(currentTurnIndex >= firebasePlayers.length) currentTurnIndex = 0;
-
-        renderPlayersBar();
-        updateTurnUI();
-        updateSolutionButton();
-      });
-    }
-
-    function getCurrentPlayer(){
-      if(firebasePlayers.length === 0) return null;
-
-      // wenn alle raus -> null
-      const anyAlive = firebasePlayers.some(p => (p.lives ?? 0) > 0);
-      if(!anyAlive) return null;
-
-      // finde nächsten lebenden ab currentTurnIndex
-      let tries = 0;
-      let idx = currentTurnIndex;
-      while(tries < firebasePlayers.length && (firebasePlayers[idx].lives ?? 0) <= 0){
-        idx = (idx + 1) % firebasePlayers.length;
-        tries++;
-      }
-      currentTurnIndex = idx;
-      return firebasePlayers[currentTurnIndex];
-    }
-
-    function advanceTurn(){
-      if(firebasePlayers.length === 0){
-        currentTurnIndex = 0;
-        updateTurnUI();
-        renderPlayersBar();
-        updateSolutionButton();
-        return;
-      }
-
-      // wenn alle raus -> fertig
-      const anyAlive = firebasePlayers.some(p => (p.lives ?? 0) > 0);
-      if(!anyAlive){
-        document.getElementById("turnBadge").textContent = "Runde vorbei (alle ausgeschieden)";
-        renderPlayersBar();
-        updateSolutionButton();
-        return;
-      }
-
-      // nächster lebender
-      for(let step=1; step<=firebasePlayers.length; step++){
-        const idx = (currentTurnIndex + step) % firebasePlayers.length;
-        if((firebasePlayers[idx].lives ?? 0) > 0){
-          currentTurnIndex = idx;
-          break;
-        }
-      }
-
-      updateTurnUI();
-      renderPlayersBar();
-      updateSolutionButton();
-    }
-
-    function updateTurnUI(){
-      const badge = document.getElementById("turnBadge");
-      const p = getCurrentPlayer();
-      badge.textContent = p ? `Am Zug: ${p.name}` : "Am Zug: —";
-    }
-
-    async function loseLife(playerName){
-      if(!playerName) return;
-      const ref = db.ref("players/" + playerName + "/lives");
-      const snap = await ref.get();
-      let lives = Number(snap.val() ?? LIVES_PER_ROUND);
-      lives = Math.max(0, lives - 1);
-      await ref.set(lives);
-    }
-
-    async function addScore(playerName, delta){
-      if(!playerName) return;
-      const ref = db.ref("players/" + playerName + "/score");
-      const snap = await ref.get();
-      let score = Number(snap.val() ?? 0);
-      score = score + delta;
-      await ref.set(score);
-    }
-
-    async function resetLivesForAllPlayers(){
-      const updates = {};
-      for(const p of firebasePlayers){
-        updates["players/" + p.name + "/lives"] = LIVES_PER_ROUND;
-      }
-      await db.ref().update(updates);
-      currentTurnIndex = 0;
-    }
-
-    /** =======================
-     *  RUNDEN / SPIELLOGIK
-     *  ======================= */
-
-    // Runde 1: Fußball
-    const roundFootball = {
-      id: "football",
-      title: "Runde 1: Top 15 Fußballer (Marktwert)",
-      hint: "Links = niedriger Marktwert, rechts = höher. Startkarte wird automatisch mittig gesetzt.",
-      unit: "Mio €",
-      decimals: 1,
-      slotCount: 15,
-      items: [
-        { id:"yamal", name:"Lamine Yamal", value:258.4, img:"assets/lamine_yamal.jpg" },
-        { id:"mbappe", name:"Kylian Mbappé", value:192.1, img:"assets/kylian_mbappe.jpg" },
-        { id:"vinicius", name:"Vinicius Junior", value:182.7, img:"assets/vinicius_junior.jpg" },
-        { id:"haaland", name:"Erling Haaland", value:177.9, img:"assets/erling_haaland.jpg" },
-        { id:"bellingham", name:"Jude Bellingham", value:177.1, img:"assets/jude_bellingham.jpg" },
-        { id:"olise", name:"Michael Olise", value:156.7, img:"assets/michael_olise.jpg" },
-        { id:"pedri", name:"Pedri", value:142.3, img:"assets/pedri.jpg" },
-        { id:"palmer", name:"Cole Palmer", value:138.7, img:"assets/cole_palmer.jpg" },
-        { id:"musiala", name:"Jamal Musiala", value:130.7, img:"assets/jamal_musiala.jpg" },
-        { id:"joaoneves", name:"João Neves", value:129.7, img:"assets/joao_neves.jpg" },
-        { id:"wirtz", name:"Florian Wirtz", value:126.5, img:"assets/florian_wirtz.jpg" },
-        { id:"saka", name:"Bukayo Saka", value:123.0, img:"assets/bukayo_saka.jpg" },
-        { id:"cubarsi", name:"Pau Cubarsí", value:122.9, img:"assets/pau_cubarsi.jpg" },
-        { id:"rice", name:"Declan Rice", value:121.1, img:"assets/declan_rice.jpg" },
-        { id:"gyokeres", name:"Viktor Gyökeres", value:120.1, img:"assets/viktor_gyokeres.jpg" },
-      ],
-    };
-
-// Runde 2: Erfolgreichste Kinofilme (Umsatz weltweit in Mrd $)
-const roundMovies = {
-  id: "movies",
-  title: "Runde 2: Erfolgreichste Kinofilme (Umsatz weltweit)",
-  hint: "Links = geringerer Umsatz, rechts = höherer Umsatz.",
-  unit: "Mrd $",
-  decimals: 4,
-  slotCount: 15,
-  items: [
-    { id:"avatar", name:"Avatar - Aufbruch nach Pandora", value:2.9238, img:"assets/avatar.jpg" },
-    { id:"endgame", name:"Avengers - Endgame", value:2.7994, img:"assets/avengers_endgame.jpg" },
-    { id:"titanic", name:"Titanic", value:2.2772, img:"assets/titanic.jpg" },
-    { id:"insideout2", name:"Alles steht Kopf 2", value:1.6989, img:"assets/alles_steht_kopf_2.jpg" },
-    { id:"harrypotter", name:"Harry Potter und die Heiligtümer des Todes Teil 2", value:1.3425, img:"assets/harry_potter.jpg" },
-    { id:"mario", name:"Der Super Mario Bros. Film", value:1.3626, img:"assets/super_mario_bros.jpg" },
-    { id:"lionking", name:"Der König der Löwen", value:1.6630, img:"assets/koenig_der_loewen.jpg" },
-    { id:"starwars7", name:"Star Wars - Das Erwachen der Macht", value:2.0713, img:"assets/star_wars.jpg" },
-    { id:"frozen", name:"Die Eiskönigin - Völlig unverfroren", value:1.2864, img:"assets/eiskoenigin.jpg" },
-    { id:"minions", name:"Minions", value:1.1675, img:"assets/minions.jpg" },
-    { id:"darkknight", name:"The Dark Knight Rises", value:1.0852, img:"assets/dark_knight.jpg" },
-    { id:"dorie", name:"Findet Dorie", value:1.0293, img:"assets/findet_dorie.jpg" },
-    { id:"oppenheimer", name:"Oppenheimer", value:0.9762, img:"assets/oppenheimer.jpg" },
-    { id:"inception", name:"Inception", value:0.8499, img:"assets/inception.jpg" },
-    { id:"fast7", name:"Fast & Furious 7", value:1.5198, img:"assets/fast_furious.jpg" }
-  ]
+function render(){
+const timeline=document.getElementById("timeline");
+timeline.innerHTML="";
+placements.forEach((item,i)=>{
+const slot=document.createElement("div");
+slot.className="slot";
+slot.innerHTML=`
+<div class="card" draggable="true">
+<img src="${item.img}">
+<div>${item.name}</div>
+</div>`;
+slot.ondragover=e=>e.preventDefault();
+slot.ondrop=e=>{
+e.preventDefault();
+const id=e.dataTransfer.getData("id");
+const item=pool.find(x=>x.id===id);
+if(!item)return;
+pool=pool.filter(x=>x.id!==id);
+placements.splice(i,0,item);
+render();
 };
-
-    const rounds = [roundFootball, roundMovies];
-    const TOTAL_ROUNDS_BADGE = 4; // wie in deinem UI (auch wenn nur 2 existieren)
-
-    let currentRoundIndex = 0;
-
-    let slotPlacements = [];
-    let statusById = {};
-    let poolOrder = [];
-    let lastPlacedId = null;
-
-    let solutionShown = false;
-
-    function getRound(){ return rounds[currentRoundIndex]; }
-
-    function shuffle(arr){
-      const a = [...arr];
-      for (let i = a.length - 1; i > 0; i--){
-        const j = Math.floor(Math.random() * (i + 1));
-        [a[i], a[j]] = [a[j], a[i]];
-      }
-      return a;
-    }
-
-    function setFlash(color){
-      const el = document.getElementById("flash");
-      el.classList.remove("green","red","on");
-      el.classList.add(color);
-      requestAnimationFrame(() => el.classList.add("on"));
-      setTimeout(() => el.classList.remove("on"), 180);
-    }
-
-    function itemById(id){ return getRound().items.find(x => x.id === id); }
-    function indexOfItem(id){ return slotPlacements.findIndex(x => x === id); }
-    function placedIds(){ return new Set(slotPlacements.filter(Boolean)); }
-
-    function formatValue(v){
-      const r = getRound();
-      if(!r.unit) return String(v);
-      const nf = new Intl.NumberFormat("de-DE", { minimumFractionDigits: r.decimals, maximumFractionDigits: r.decimals });
-      return `${nf.format(v)} ${r.unit}`;
-    }
-
-    function updateRoundUI(){
-      const r = getRound();
-      document.getElementById("title").textContent = r.title;
-      document.getElementById("hint").textContent = r.hint;
-      document.getElementById("roundBadge").textContent = `${currentRoundIndex + 1}/${TOTAL_ROUNDS_BADGE}`;
-
-      const timeline = document.getElementById("timeline");
-      timeline.style.gridTemplateColumns = `repeat(${r.slotCount}, minmax(64px, 1fr))`;
-    }
-
-    function initRound(index){
-      currentRoundIndex = index;
-      updateRoundUI();
-
-      const r = getRound();
-      slotPlacements = Array.from({ length: r.slotCount }, () => null);
-      statusById = Object.fromEntries(r.items.map(it => [it.id, "pool"]));
-      poolOrder = shuffle(r.items.map(x => x.id));
-      lastPlacedId = null;
-      solutionShown = false;
-
-      seedMiddleFixed();
-      renderAll();
-      updateSolutionButton();
-      updateTurnUI();
-    }
-
-    function seedMiddleFixed(){
-      const r = getRound();
-      const mid = Math.floor(r.slotCount / 2);
-      const pick = r.items[Math.floor(Math.random() * r.items.length)].id;
-      slotPlacements[mid] = pick;
-      statusById[pick] = "fixed";
-    }
-
-    async function nextRound(){
-      const next = currentRoundIndex + 1;
-      if (next >= rounds.length){
-        alert("Weitere Runden (3/4, 4/4) sind noch nicht angelegt.");
-        return;
-      }
-      await resetLivesForAllPlayers();
-      initRound(next);
-    }
-
-    async function resetTimeline(){
-      const r = getRound();
-      slotPlacements = Array.from({ length: r.slotCount }, () => null);
-      for (const it of r.items) statusById[it.id] = "pool";
-      poolOrder = shuffle(r.items.map(x => x.id));
-      lastPlacedId = null;
-      solutionShown = false;
-
-      seedMiddleFixed();
-      await resetLivesForAllPlayers();
-
-      renderAll();
-      updateSolutionButton();
-      updateTurnUI();
-    }
-
-    function randomizeStart(){
-      // Startkarte neu + Pool mischen
-      const r = getRound();
-      slotPlacements = Array.from({ length: r.slotCount }, () => null);
-      for (const it of r.items) statusById[it.id] = "pool";
-      poolOrder = shuffle(r.items.map(x => x.id));
-      lastPlacedId = null;
-      solutionShown = false;
-
-      seedMiddleFixed();
-      renderAll();
-      updateSolutionButton();
-    }
-
-    /** ========= INSERT / GAP CLOSE ========= */
-    function insertWithShift(targetIndex, droppedId){
-      const existingIndex = indexOfItem(droppedId);
-      if (existingIndex !== -1) slotPlacements[existingIndex] = null;
-
-      if (!slotPlacements[targetIndex]){
-        slotPlacements[targetIndex] = droppedId;
-        return true;
-      }
-
-      let emptyRight = -1;
-      for (let k = targetIndex; k < slotPlacements.length; k++){
-        if (slotPlacements[k] === null) { emptyRight = k; break; }
-      }
-      if (emptyRight !== -1){
-        for (let k = emptyRight; k > targetIndex; k--){
-          slotPlacements[k] = slotPlacements[k - 1];
-        }
-        slotPlacements[targetIndex] = droppedId;
-        return true;
-      }
-
-      let emptyLeft = -1;
-      for (let k = targetIndex; k >= 0; k--){
-        if (slotPlacements[k] === null) { emptyLeft = k; break; }
-      }
-      if (emptyLeft !== -1){
-        for (let k = emptyLeft; k < targetIndex; k++){
-          slotPlacements[k] = slotPlacements[k + 1];
-        }
-        slotPlacements[targetIndex] = droppedId;
-        return true;
-      }
-
-      return false;
-    }
-
-    function closeGapFromIndex(startIndex){
-      for (let i = startIndex; i < slotPlacements.length; i++){
-        if (slotPlacements[i] !== null) continue;
-
-        let j = i + 1;
-        while (j < slotPlacements.length && slotPlacements[j] === null) j++;
-        if (j >= slotPlacements.length) return;
-
-        slotPlacements[i] = slotPlacements[j];
-        slotPlacements[j] = null;
-      }
-    }
-
-    /** ========= CHECK / SOLUTION ========= */
-    function isPlacementConsistent(){
-      const placed = slotPlacements
-        .map((id, idx) => ({ id, idx }))
-        .filter(x => x.id !== null)
-        .map(x => ({ ...x, value: itemById(x.id).value }));
-
-      for (let i = 0; i < placed.length; i++){
-        for (let j = i + 1; j < placed.length; j++){
-          const a = placed[i], b = placed[j];
-          if (a.value === b.value) continue;
-          if (a.value < b.value && !(a.idx < b.idx)) return false;
-          if (a.value > b.value && !(a.idx > b.idx)) return false;
-        }
-      }
-      return true;
-    }
-
-    function getCorrectOrderIds(){
-      const r = getRound();
-      return [...r.items]
-        .sort((a,b) => (a.value - b.value) || a.name.localeCompare(b.name))
-        .map(x => x.id);
-    }
-
-    function showSolution(){
-      const r = getRound();
-      const ids = getCorrectOrderIds();
-      slotPlacements = Array.from({ length: r.slotCount }, (_, i) => ids[i] ?? null);
-
-      for (const it of r.items) statusById[it.id] = "fixed";
-      lastPlacedId = null;
-      solutionShown = true;
-
-      renderAll();
-      document.getElementById("turnBadge").textContent = "Lösung angezeigt";
-      updateSolutionButton();
-    }
-
-    function updateSolutionButton(){
-      const btn = document.getElementById("solutionBtn");
-      const anyAlive = firebasePlayers.some(p => (p.lives ?? 0) > 0);
-      btn.disabled = anyAlive || firebasePlayers.length === 0;
-    }
-
-    async function verify(){
-      if (!lastPlacedId) return;
-      if (solutionShown) return;
-
-      const ok = isPlacementConsistent();
-      const p = getCurrentPlayer();
-
-      if (ok){
-        statusById[lastPlacedId] = "fixed";
-        setFlash("green");
-
-        if (p) await addScore(p.name, +1);
-
-        lastPlacedId = null;
-        renderAll();
-        advanceTurn();
-      } else {
-        const idx = indexOfItem(lastPlacedId);
-        if (idx !== -1) slotPlacements[idx] = null;
-        if (idx !== -1) closeGapFromIndex(idx);
-
-        statusById[lastPlacedId] = "pool";
-        lastPlacedId = null;
-
-        poolOrder = shuffle(poolOrder);
-        setFlash("red");
-        renderAll();
-
-        if (p) await loseLife(p.name);
-
-        advanceTurn();
-      }
-    }
-
-    /** ========= RENDER ========= */
-    function renderAll(){
-      renderTimeline();
-      renderPool();
-    }
-
-    function renderTimeline(){
-      const r = getRound();
-      const timeline = document.getElementById("timeline");
-      timeline.innerHTML = "";
-
-      for (let i = 0; i < r.slotCount; i++){
-        const slot = document.createElement("div");
-        slot.className = "slot";
-
-        const header = document.createElement("div");
-        header.className = "slotHeader";
-        header.textContent = String(i + 1);
-
-        const body = document.createElement("div");
-        body.className = "slotBody";
-
-        const id = slotPlacements[i];
-        if (id){
-          body.appendChild(makeCard(itemById(id), true));
-        } else {
-          const empty = document.createElement("div");
-          empty.className = "emptyDrop";
-          empty.textContent = "Drop";
-          body.appendChild(empty);
-        }
-
-        slot.addEventListener("dragover", (e) => {
-          e.preventDefault();
-          slot.classList.add("dropOver");
-        }, true);
-
-        slot.addEventListener("dragleave", () => slot.classList.remove("dropOver"), true);
-
-        slot.addEventListener("drop", (e) => {
-          e.preventDefault();
-          slot.classList.remove("dropOver");
-          if (solutionShown) return;
-
-          const droppedId = e.dataTransfer.getData("text/itemId");
-          if (!droppedId) return;
-
-          const ok = insertWithShift(i, droppedId);
-          if (!ok) return;
-
-          lastPlacedId = droppedId;
-          statusById[droppedId] = "pending";
-          renderAll();
-        }, true);
-
-        slot.appendChild(header);
-        slot.appendChild(body);
-        timeline.appendChild(slot);
-      }
-    }
-
-    function renderPool(){
-      const pool = document.getElementById("pool");
-      pool.innerHTML = "";
-      if (solutionShown) return;
-
-      const placed = placedIds();
-      for (const id of poolOrder){
-        if (placed.has(id)) continue;
-        if (statusById[id] !== "pool") continue;
-        pool.appendChild(makeCard(itemById(id), false));
-      }
-    }
-
-    function makeCard(item, inSlot){
-      const card = document.createElement("div");
-      card.className = "cardItem";
-      card.draggable = true;
-      card.dataset.status = statusById[item.id] || "pool";
-
-      const img = document.createElement("img");
-      img.className = "avatar";
-      img.alt = item.name;
-      img.src = item.img;
-      img.onerror = () => { img.removeAttribute("src"); };
-
-      const label = document.createElement("div");
-      label.className = "label";
-      label.textContent = item.name;
-
-      card.addEventListener("dragstart", (e) => {
-        e.dataTransfer.setData("text/itemId", item.id);
-      });
-
-      card.appendChild(img);
-      card.appendChild(label);
-
-      // Werte nur in der Lösung (und nur im Zeitstrahl)
-      if (solutionShown && inSlot){
-        const v = document.createElement("div");
-        v.className = "label";
-        v.style.opacity = "0.85";
-        v.style.fontSize = "12px";
-        v.textContent = formatValue(item.value);
-        card.appendChild(v);
-      } else {
-        const spacer = document.createElement("div");
-        spacer.style.height = "0px";
-        card.appendChild(spacer);
-      }
-
-      if (inSlot){
-        card.title = "Klick: zurück in Pool";
-        card.addEventListener("click", () => {
-          if (solutionShown) return;
-
-          const idx = indexOfItem(item.id);
-          if (idx !== -1) slotPlacements[idx] = null;
-          statusById[item.id] = "pool";
-          if (lastPlacedId === item.id) lastPlacedId = null;
-          if (idx !== -1) closeGapFromIndex(idx);
-          renderAll();
-        });
-      }
-
-      return card;
-    }
-
-    function escapeHtml(str){
-      return String(str)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
-    }
-
-    /** ========= WIRE UI ========= */
-    document.getElementById("checkBtn").addEventListener("click", () => verify());
-    document.getElementById("solutionBtn").addEventListener("click", showSolution);
-    document.getElementById("resetTimeline").addEventListener("click", () => resetTimeline());
-    document.getElementById("shufflePool").addEventListener("click", () => {
-      poolOrder = shuffle(poolOrder);
-      renderPool();
-    });
-    document.getElementById("randomBtn").addEventListener("click", randomizeStart);
-    document.getElementById("nextRound").addEventListener("click", () => nextRound());
-
-    /** ========= INIT ========= */
-    syncPlayers();
-    initRound(0);
-  </script>
+timeline.appendChild(slot);
+});
+
+const poolDiv=document.getElementById("pool");
+poolDiv.innerHTML="";
+pool.forEach(item=>{
+const card=document.createElement("div");
+card.className="card";
+card.draggable=true;
+card.ondragstart=e=>e.dataTransfer.setData("id",item.id);
+card.innerHTML=`
+<img src="${item.img}">
+<div>${item.name}</div>`;
+poolDiv.appendChild(card);
+});
+}
+
+function checkOrder(){
+const correct=[...placements].sort((a,b)=>a.value-b.value);
+for(let i=0;i<placements.length;i++){
+if(placements[i].id!==correct[i].id){
+const wrong=placements[i];
+placements.splice(i,1);
+pool.push(wrong);
+alert(wrong.name+" war falsch!");
+render();
+return;
+}
+}
+alert("Alles korrekt!");
+}
+
+function nextRound(){
+currentRound++;
+if(currentRound>=rounds.length){
+alert("Spiel vorbei!");
+currentRound=0;
+}
+initRound();
+}
+
+function shuffle(arr){
+for(let i=arr.length-1;i>0;i--){
+const j=Math.floor(Math.random()*(i+1));
+[arr[i],arr[j]]=[arr[j],arr[i]];
+}
+}
+
+/* ===== SPIELER ANZEIGE ===== */
+db.ref("players").on("value",snap=>{
+const playersDiv=document.getElementById("players");
+playersDiv.innerHTML="";
+snap.forEach(child=>{
+const data=child.val();
+const div=document.createElement("div");
+div.className="playerBox";
+div.innerHTML=`
+<strong>${data.name}</strong>
+<div class="hearts">${"❤️".repeat(data.lives||2)}</div>`;
+playersDiv.appendChild(div);
+});
+});
+
+/* INIT */
+initRound();
+</script>
 
 </body>
 </html>
