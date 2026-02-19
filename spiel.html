@@ -155,21 +155,21 @@ function initRound(){
 
   if(!window.isHost) return;
 
-  // Host erstellt neuen globalen State
+  // Nur Slots speichern (Pool wird berechnet)
   let slots = Array(r.items.length).fill(null);
-  let pool = r.items.map(x => x.id);
-  shuffle(pool);
 
-  // Mittlere Karte setzen
-  const mid = Math.floor(slots.length/2);
-  const id = pool.pop();
-  slots[mid] = id;
+  // zufällige Startkarte in die Mitte
+  const ids = r.items.map(x => x.id);
+  shuffle(ids);
+
+  const mid = Math.floor(slots.length / 2);
+  slots[mid] = ids[0];
 
   db.ref("game/state").set({
-    slots: slots,
-    pool: pool
+    slots: slots
   });
 }
+
 
 
 function seedMiddle(){
@@ -219,12 +219,20 @@ timeline.appendChild(slot);
 }
 
 function renderPool(){
-const pool=document.getElementById("pool");
-pool.innerHTML="";
-poolOrder.forEach(id=>{
-if(slotPlacements.includes(id))return;
-pool.appendChild(makeCard(getItem(id),false));
-});
+  const pool = document.getElementById("pool");
+  pool.innerHTML = "";
+
+  // Pool dynamisch berechnen: alle Items - alles was in slots liegt
+  const allIds = rounds[currentRound].items.map(x => x.id);
+  const inSlots = new Set((slotPlacements || []).filter(Boolean));
+  const poolIds = allIds.filter(id => !inSlots.has(id));
+
+  // Optional: mischen, damit Pool nicht immer gleich aussieht
+  shuffle(poolIds);
+
+  poolIds.forEach(id => {
+    pool.appendChild(makeCard(getItem(id), false));
+  });
 }
 
 function makeCard(item,inSlot){
@@ -237,28 +245,23 @@ card.ondragstart=e=>e.dataTransfer.setData("id",item.id);
 return card;
 }
 
-function insertWithShift(index,id){
+function insertWithShift(index, id){
   if(!window.isHost) return;
 
   const stateRef = db.ref("game/state");
 
   stateRef.transaction(state => {
-    if(!state) return state;
+    if(!state || !state.slots) return state;
 
-    let slots = state.slots;
-    let pool = state.pool;
+    // Slots als echtes Array absichern (falls Firebase Objekt liefert)
+    let slots = Array.isArray(state.slots) ? state.slots : Object.values(state.slots);
 
     const existing = slots.indexOf(id);
     if(existing !== -1) slots[existing] = null;
 
     slots[index] = id;
 
-    pool = pool.filter(x => x !== id);
-
-    return {
-      slots: slots,
-      pool: pool
-    };
+    return { slots: slots };
   });
 }
 
@@ -269,26 +272,18 @@ function checkPlacement(){
 
   stateRef.once("value").then(snap => {
     const state = snap.val();
-    if(!state) return;
+    if(!state || !state.slots) return;
 
-    const values = state.slots.map(id => id ? getItem(id).value : null);
+    const slots = Array.isArray(state.slots) ? state.slots : Object.values(state.slots);
+    const values = slots.map(id => id ? getItem(id).value : null);
 
-    for(let i=1;i<values.length;i++){
+    for(let i = 1; i < values.length; i++){
       if(values[i] !== null && values[i-1] !== null && values[i] < values[i-1]){
+        // falscher Slot = der aktuelle i
+        const wrongId = slots[i];
+        slots[i] = null;
 
-        let wrongIndex = state.slots.findIndex((id,i)=>{
-          return values[i] !== null &&
-                 values[i-1] !== null &&
-                 values[i] < values[i-1];
-        });
-
-        let wrongId = state.slots[wrongIndex];
-
-        state.slots[wrongIndex] = null;
-        state.pool.push(wrongId);
-
-        stateRef.set(state);
-
+        stateRef.set({ slots: slots });
         loseLife();
         return;
       }
@@ -396,23 +391,16 @@ db.ref("game/currentRound").on("value", snap => {
   currentRound = value;
 });
 
-// Globale Spielstate Synchronisation
 db.ref("game/state").on("value", snap => {
   const state = snap.val();
-  if(!state) return;
+  if(!state || !state.slots) return;
 
-  // Firebase kann Arrays als Objekt speichern → in echtes Array umwandeln
   slotPlacements = Array.isArray(state.slots)
     ? state.slots
     : Object.values(state.slots || {});
 
-  poolOrder = Array.isArray(state.pool)
-    ? state.pool
-    : Object.values(state.pool || {});
-
   renderAll();
 });
-
 
 </script>
 </body>
