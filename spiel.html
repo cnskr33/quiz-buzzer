@@ -298,8 +298,22 @@ container.appendChild(div);
 });
 });
 
-
 initRound();
+
+// Host-UI Kontrolle
+db.ref("game/host").on("value", snap => {
+  const hostId = snap.val();
+  const isHost = (hostId === playerId);
+
+  const nextBtn = document.getElementById("nextRoundBtn");
+  const resetBtn = document.getElementById("resetBtn");
+
+  if(!isHost){
+    if(nextBtn) nextBtn.style.display = "none";
+    if(resetBtn) resetBtn.style.display = "none";
+  }
+});
+
 </script>
 </body>
 </html>
