@@ -62,20 +62,7 @@ playerRef.onDisconnect().remove();
 hostRef.on("value", snap => {
   const hostId = snap.val();
   window.isHost = (hostId === playerId);
-
-  if(window.isHost){
-    db.ref("game/currentRound").once("value").then(snap => {
-      let round = snap.val();
-      if(round === null){
-        round = 0;
-        db.ref("game/currentRound").set(0);
-      }
-      currentRound = round;
-      initRound();
-    });
-  }
 });
-
 
 playerRef.onDisconnect().remove();
 
@@ -108,12 +95,14 @@ button:hover{background:rgba(255,255,255,0.2)}
 
 <div class="card">
 <h2 id="title"></h2>
+
 <div>
 <button onclick="checkPlacement()">Überprüfen</button>
 <button onclick="randomizeStart()">Zufällig</button>
-<button onclick="nextRound()">Nächste Runde</button>
-<button onclick="resetPlayers()">Spieler Reset</button>
+<button id="nextRoundBtn" onclick="nextRound()">Nächste Runde</button>
+<button id="resetBtn" onclick="resetPlayers()">Spieler Reset</button>
 </div>
+
 
 <div id="timeline" class="timeline"></div>
 
@@ -370,19 +359,32 @@ container.appendChild(div);
 
 
 
-// Host-UI Kontrolle
+// Host-UI + Init
 db.ref("game/host").on("value", snap => {
   const hostId = snap.val();
-  const isHost = (hostId === playerId);
+  window.isHost = (hostId === playerId);
 
   const nextBtn = document.getElementById("nextRoundBtn");
   const resetBtn = document.getElementById("resetBtn");
 
-  if(!isHost){
+  if(!window.isHost){
     if(nextBtn) nextBtn.style.display = "none";
     if(resetBtn) resetBtn.style.display = "none";
+    return;
   }
+
+  // Wenn ich Host bin -> Runde sicherstellen
+  db.ref("game/currentRound").transaction(cur => {
+    if(cur === null) return 0;
+    return cur;
+  }).then(() => {
+    db.ref("game/currentRound").once("value").then(s => {
+      currentRound = s.val() ?? 0;
+      initRound();
+    });
+  });
 });
+
   
 // Globale Rundensynchronisation
 db.ref("game/currentRound").on("value", snap => {
