@@ -61,6 +61,7 @@ button:hover{background:rgba(255,255,255,0.2)}
 <button onclick="checkPlacement()">Überprüfen</button>
 <button onclick="randomizeStart()">Zufällig</button>
 <button onclick="nextRound()">Nächste Runde</button>
+<button onclick="resetPlayers()">Spieler Reset</button>
 </div>
 
 <div id="timeline" class="timeline"></div>
@@ -234,7 +235,13 @@ currentRound++;
 if(currentRound>=rounds.length)currentRound=0;
 initRound();
 }
-
+  
+function resetPlayers(){
+  if(confirm("Wirklich alle Spieler zurücksetzen?")){
+    db.ref("players").remove();
+  }
+}
+ 
 /* Spieler Anzeige */
 db.ref("players").on("value",snap=>{
 const container=document.getElementById("players");
