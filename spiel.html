@@ -18,51 +18,42 @@ const firebaseConfig = {
   messagingSenderId: "651866459764",
   appId: "1:651866459764:web:ed23cf3fd5ccf02a42cb21"
 };
-
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-/* ==== PLAYER CHECK (URL PARAM) ==== */
-const urlParams = new URLSearchParams(window.location.search);
-const playerId = urlParams.get("id");
-
+const params = new URLSearchParams(window.location.search);
+const playerId = params.get("id");
 if(!playerId){
   document.body.innerHTML = "<h2>Kein Name übergeben. Bitte über index.html einwählen</h2>";
   throw new Error("Kein Spieler");
 }
-
-const playerRef = db.ref("players/" + playerId);
-
-/* Spieler automatisch entfernen wenn Tab geschlossen */
+const playerRef = db.ref("players/"+playerId);
 playerRef.onDisconnect().remove();
 </script>
 
 <style>
-body{margin:0;font-family:Arial;background:#0b1020;color:#e9eefc}
+body{margin:0;background:#0b1020;color:#e9eefc;font-family:Arial}
 .app{padding:20px}
-.hidden{display:none}
 .timeline{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px}
-.slot{border:2px dashed #888;padding:10px;min-width:120px;min-height:160px;text-align:center}
-.card{background:#1c2545;padding:10px;border-radius:8px;cursor:grab}
-.card img{width:80px;height:80px;object-fit:cover;border-radius:8px}
+.slot{border:2px dashed #555;min-width:140px;min-height:180px;padding:10px;text-align:center}
+.card{background:#1c2545;border-radius:8px;padding:10px;cursor:grab}
+.card img{width:90px;height:90px;object-fit:cover;border-radius:6px}
 .pool{display:flex;gap:10px;flex-wrap:wrap}
-.btn{padding:8px 12px;margin:5px;background:#2563eb;color:white;border:none;border-radius:6px;cursor:pointer}
+.btn{background:#2563eb;color:white;border:none;padding:8px 12px;border-radius:6px;margin:5px;cursor:pointer}
+.playerBox{background:#1c2545;padding:8px;margin:5px;border-radius:6px}
 .hearts{font-size:18px}
-.playerBox{background:#1c2545;padding:10px;border-radius:8px;margin:5px}
 </style>
 </head>
 
 <body>
 <div class="app">
 
-<h2 id="roundTitle">Runde 1</h2>
-
+<h2 id="roundTitle"></h2>
 <button class="btn" onclick="randomStart()">Zufällig</button>
 <button class="btn" onclick="checkOrder()">Überprüfen</button>
 <button class="btn" onclick="nextRound()">Nächste Runde</button>
 
 <hr>
-
 <h3>Zeitstrahl</h3>
 <div id="timeline" class="timeline"></div>
 
@@ -70,22 +61,19 @@ body{margin:0;font-family:Arial;background:#0b1020;color:#e9eefc}
 <div id="pool" class="pool"></div>
 
 <hr>
-
 <h3>Spieler</h3>
 <div id="players"></div>
 
 </div>
 
 <script>
-/* ===========================
-   RUNDEN DATEN
-=========================== */
+
+/* ================= RUNDEN ================= */
 
 const rounds = [
 
 {
-title:"Runde 1 – Marktwerte Fußball",
-unit:"Mio €",
+title:"Runde 1 – Marktwerte Fußball (Mio €)",
 items:[
 { id:"yamal", name:"Lamine Yamal", value:258.4, img:"assets/lamine_yamal.jpg"},
 { id:"mbappe", name:"Kylian Mbappé", value:192.1, img:"assets/kylian_mbappe.jpg"},
@@ -107,7 +95,6 @@ items:[
 
 {
 title:"Runde 2 – Kino Umsätze (Mrd $)",
-unit:"Mrd $",
 items:[
 { id:"avatar", name:"Avatar", value:2.9238, img:"assets/avatar.jpg"},
 { id:"endgame", name:"Avengers Endgame", value:2.7994, img:"assets/avengers_endgame.jpg"},
@@ -133,6 +120,8 @@ let currentRound=0;
 let placements=[];
 let pool=[];
 
+/* ================= SPIEL LOGIK ================= */
+
 function initRound(){
 const r=rounds[currentRound];
 document.getElementById("roundTitle").innerText=r.title;
@@ -140,16 +129,12 @@ placements=[];
 pool=[...r.items];
 shuffle(pool);
 randomStart();
-render();
 }
 
 function randomStart(){
-const r=rounds[currentRound];
-placements=[];
-pool=[...r.items];
+pool=[...rounds[currentRound].items];
 shuffle(pool);
-const randomItem=pool.pop();
-placements.push(randomItem);
+placements=[pool.pop()];
 render();
 }
 
@@ -159,11 +144,9 @@ timeline.innerHTML="";
 placements.forEach((item,i)=>{
 const slot=document.createElement("div");
 slot.className="slot";
-slot.innerHTML=`
-<div class="card" draggable="true">
+slot.innerHTML=`<div class="card" draggable="true">
 <img src="${item.img}">
-<div>${item.name}</div>
-</div>`;
+<div>${item.name}</div></div>`;
 slot.ondragover=e=>e.preventDefault();
 slot.ondrop=e=>{
 e.preventDefault();
@@ -184,9 +167,7 @@ const card=document.createElement("div");
 card.className="card";
 card.draggable=true;
 card.ondragstart=e=>e.dataTransfer.setData("id",item.id);
-card.innerHTML=`
-<img src="${item.img}">
-<div>${item.name}</div>`;
+card.innerHTML=`<img src="${item.img}"><div>${item.name}</div>`;
 poolDiv.appendChild(card);
 });
 }
@@ -198,20 +179,26 @@ if(placements[i].id!==correct[i].id){
 const wrong=placements[i];
 placements.splice(i,1);
 pool.push(wrong);
-alert(wrong.name+" war falsch!");
+loseLife();
 render();
 return;
 }
 }
-alert("Alles korrekt!");
+alert("Richtig!");
+}
+
+function loseLife(){
+playerRef.transaction(data=>{
+if(!data)return data;
+data.lives=(data.lives||2)-1;
+if(data.lives<=0) data.lives=0;
+return data;
+});
 }
 
 function nextRound(){
 currentRound++;
-if(currentRound>=rounds.length){
-alert("Spiel vorbei!");
-currentRound=0;
-}
+if(currentRound>=rounds.length) currentRound=0;
 initRound();
 }
 
@@ -222,24 +209,23 @@ const j=Math.floor(Math.random()*(i+1));
 }
 }
 
-/* ===== SPIELER ANZEIGE ===== */
+/* ================= SPIELER ================= */
+
 db.ref("players").on("value",snap=>{
-const playersDiv=document.getElementById("players");
-playersDiv.innerHTML="";
+const container=document.getElementById("players");
+container.innerHTML="";
 snap.forEach(child=>{
 const data=child.val();
 const div=document.createElement("div");
 div.className="playerBox";
-div.innerHTML=`
-<strong>${data.name}</strong>
+div.innerHTML=`<strong>${data.name}</strong>
 <div class="hearts">${"❤️".repeat(data.lives||2)}</div>`;
-playersDiv.appendChild(div);
+container.appendChild(div);
 });
 });
 
-/* INIT */
+/* START */
 initRound();
 </script>
-
 </body>
 </html>
