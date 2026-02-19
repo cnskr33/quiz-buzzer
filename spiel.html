@@ -20,16 +20,32 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-
+// Spieler-ID aus URL ODER sessionStorage holen
 const params = new URLSearchParams(window.location.search);
-const playerId = params.get("id");
+let playerId = params.get("id") || sessionStorage.getItem("playerId");
+
 if(!playerId){
-document.body.innerHTML="<h2>Kein Name übergeben</h2>";
-throw new Error("Kein Spieler");
+  document.body.innerHTML="<h2>Kein Spieler gefunden</h2>";
+  throw new Error("Kein Spieler");
 }
-const playerRef=db.ref("players/"+playerId);
+
+const playerRef = db.ref("players/" + playerId);
+
+// Falls Spieler noch nicht existiert → neu anlegen
+playerRef.once("value").then(snap => {
+  if(!snap.exists()){
+    const playerName = sessionStorage.getItem("playerName") || "Spieler";
+    playerRef.set({
+      name: playerName,
+      lives: 2,
+      joinedAt: Date.now()
+    });
+  }
+});
+
+// Bei Disconnect löschen
 playerRef.onDisconnect().remove();
-</script>
+
 
 <style>
 body{margin:0;background:#0b1020;color:#e9eefc;font-family:system-ui}
