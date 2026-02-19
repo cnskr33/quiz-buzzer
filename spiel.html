@@ -356,7 +356,7 @@ container.appendChild(div);
 });
 });
 
-initRound();
+
 
 // Host-UI Kontrolle
 db.ref("game/host").on("value", snap => {
@@ -382,7 +382,10 @@ db.ref("game/currentRound").on("value", snap => {
     currentRound = value;
   }
 
-  initRound();
+  // Nur Host erzeugt neuen State
+  if(window.isHost){
+    initRound();
+  }
 });
 
 // Globale Spielstate Synchronisation
