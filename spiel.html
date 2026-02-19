@@ -3,91 +3,40 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Quizshow – Zeitstrahl</title>
-
-<!-- FIREBASE -->
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
-
-<script>
-const firebaseConfig = {
-  apiKey: "AIzaSyCob25y3pT7O6wjf21l9xiaCXhGMFLzFQg",
-  authDomain: "testprojekt-dada3.firebaseapp.com",
-  databaseURL: "https://testprojekt-dada3-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "testprojekt-dada3",
-  storageBucket: "testprojekt-dada3.firebasestorage.app",
-  messagingSenderId: "651866459764",
-  appId: "1:651866459764:web:ed23cf3fd5ccf02a42cb21"
-};
-
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-</script>
+<title>Quizshow – Runden</title>
 
 <style>
-body{margin:0;font-family:Arial;background:#0b1020;color:#e9eefc}
+body{margin:0;font-family:Arial;background:#0b1020;color:#e9eefc;padding:20px}
 
-/* BUZZER */
-.buzzerBar{
-  background:#111a33;
-  padding:12px;
-  display:flex;
-  gap:15px;
-  align-items:center;
-  justify-content:center;
-  border-bottom:2px solid #2a3a66;
-  flex-wrap:wrap;
-}
-
-.buzzerBtn{
-  background:red;
-  color:white;
-  font-size:20px;
-  padding:10px 20px;
+button{
+  padding:8px 14px;
+  margin:5px;
   border:none;
-  border-radius:10px;
+  border-radius:8px;
   cursor:pointer;
-}
-
-.resetBtn{
-  background:#333;
+  background:#2563eb;
   color:white;
-  border:none;
-  padding:10px 15px;
-  border-radius:10px;
-  cursor:pointer;
-}
-
-.winner{
-  font-weight:bold;
-  font-size:18px;
-}
-
-/* SPIEL */
-.app{
-  padding:20px;
 }
 
 .timeline{
   display:grid;
-  grid-template-columns: repeat(15, 1fr);
   gap:8px;
+  margin-top:20px;
   margin-bottom:30px;
 }
 
 .slot{
-  min-height:140px;
+  min-height:130px;
   border:2px dashed rgba(255,255,255,0.3);
-  border-radius:12px;
+  border-radius:10px;
   display:flex;
   align-items:center;
   justify-content:center;
-  padding:4px;
 }
 
 .pool{
   display:grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(5,1fr);
   gap:12px;
 }
 
@@ -114,243 +63,209 @@ body{margin:0;font-family:Arial;background:#0b1020;color:#e9eefc}
   transform:scale(1.05);
 }
 
-.selected{
-  outline:3px solid yellow;
-}
-
-.fixed{
-  outline:3px solid lime;
-}
+.selected{ outline:3px solid yellow; }
+.fixed{ outline:3px solid lime; }
 </style>
 </head>
 
 <body>
 
-<!-- BUZZER -->
-<div class="buzzerBar">
-  <button class="buzzerBtn" onclick="buzz()">🔴 BUZZER</button>
-  <button class="resetBtn" onclick="resetBuzz()">Reset</button>
-  <span id="winner" class="winner"></span>
-</div>
+<h2 id="roundTitle">Runde</h2>
 
-<div class="app">
-
-<h2>Top 15 Fußballer – Marktwert Zeitstrahl</h2>
-<p>Links = niedriger Marktwert → Rechts = höher</p>
-
-<button onclick="verifyPlacement()" style="margin-bottom:20px;">Überprüfen</button>
+<button onclick="setRandomStarter()">Zufällig</button>
+<button onclick="nextRound()">Nächste Runde</button>
 
 <div id="timeline" class="timeline"></div>
 
-<h3>Spieler</h3>
+<h3>Pool</h3>
 <div id="pool" class="pool"></div>
-
-</div>
 
 <script>
 
-/* ========= NAME CHECK ========= */
-const myName = localStorage.getItem("quiz_name");
-if(!myName){
-  alert("Kein Name gefunden.");
-  window.location.href = "index.html";
+/* ============================
+   RUNDEN
+============================ */
+
+const rounds = [
+{
+  title:"Runde 1 – Fußball Marktwerte",
+  slotCount:15,
+  data:[
+    { name:"Lamine Yamal", value:258.4, img:"assets/lamine_yamal.jpg" },
+    { name:"Kylian Mbappé", value:192.1, img:"assets/kylian_mbappe.jpg" },
+    { name:"Vinicius Junior", value:182.7, img:"assets/vinicius_junior.jpg" },
+    { name:"Erling Haaland", value:177.9, img:"assets/erling_haaland.jpg" },
+    { name:"Jude Bellingham", value:177.1, img:"assets/jude_bellingham.jpg" },
+    { name:"Michael Olise", value:156.7, img:"assets/michael_olise.jpg" },
+    { name:"Pedri", value:142.3, img:"assets/pedri.jpg" },
+    { name:"Cole Palmer", value:138.7, img:"assets/cole_palmer.jpg" },
+    { name:"Jamal Musiala", value:130.7, img:"assets/jamal_musiala.jpg" },
+    { name:"João Neves", value:129.7, img:"assets/joao_neves.jpg" },
+    { name:"Florian Wirtz", value:126.5, img:"assets/florian_wirtz.jpg" },
+    { name:"Bukayo Saka", value:123.0, img:"assets/bukayo_saka.jpg" },
+    { name:"Pau Cubarsí", value:122.9, img:"assets/pau_cubarsi.jpg" },
+    { name:"Declan Rice", value:121.1, img:"assets/declan_rice.jpg" },
+    { name:"Viktor Gyökeres", value:120.1, img:"assets/viktor_gyokeres.jpg" }
+  ]
+},
+{
+  title:"Runde 2 – Platzhalter",
+  slotCount:10,
+  data:[
+    { name:"Platzhalter 1", value:10, img:"assets/lamine_yamal.jpg" },
+    { name:"Platzhalter 2", value:20, img:"assets/lamine_yamal.jpg" }
+  ]
 }
-
-/* ========= BUZZER ========= */
-async function buzz(){
-  const buzzerRef = db.ref("buzzer");
-  const snap = await buzzerRef.get();
-  if(!snap.exists() || !snap.val()){
-    buzzerRef.set(myName);
-  }
-}
-
-function resetBuzz(){
-  db.ref("buzzer").set("");
-}
-
-db.ref("buzzer").on("value", (snap)=>{
-  const val = snap.val();
-  document.getElementById("winner").textContent =
-    val ? ("Gewinner: " + val) : "";
-});
-
-/* ========= SPIELDATEN ========= */
-
-const players = [
-{ name:"Lamine Yamal", value:258.4, img:"assets/lamine_yamal.jpg" },
-{ name:"Kylian Mbappé", value:192.1, img:"assets/kylian_mbappe.jpg" },
-{ name:"Vinicius Junior", value:182.7, img:"assets/vinicius_junior.jpg" },
-{ name:"Erling Haaland", value:177.9, img:"assets/erling_haaland.jpg" },
-{ name:"Jude Bellingham", value:177.1, img:"assets/jude_bellingham.jpg" },
-{ name:"Michael Olise", value:156.7, img:"assets/michael_olise.jpg" },
-{ name:"Pedri", value:142.3, img:"assets/pedri.jpg" },
-{ name:"Cole Palmer", value:138.7, img:"assets/cole_palmer.jpg" },
-{ name:"Jamal Musiala", value:130.7, img:"assets/jamal_musiala.jpg" },
-{ name:"João Neves", value:129.7, img:"assets/joao_neves.jpg" },
-{ name:"Florian Wirtz", value:126.5, img:"assets/florian_wirtz.jpg" },
-{ name:"Bukayo Saka", value:123.0, img:"assets/bukayo_saka.jpg" },
-{ name:"Pau Cubarsí", value:122.9, img:"assets/pau_cubarsi.jpg" },
-{ name:"Declan Rice", value:121.1, img:"assets/declan_rice.jpg" },
-{ name:"Viktor Gyökeres", value:120.1, img:"assets/viktor_gyokeres.jpg" }
 ];
 
+let currentRound = 0;
+let players = [];
 let selectedCard = null;
-let lastPlaced = null;
+let slots = [];
 
 const pool = document.getElementById("pool");
 const timeline = document.getElementById("timeline");
 
-const SLOT_COUNT = 15;
-const slots = [];
+/* ============================
+   INIT
+============================ */
 
-/* ========= ZEITSTRAHL MIT SHIFT ========= */
+startRound();
 
-for(let i=0;i<SLOT_COUNT;i++){
-  const slot = document.createElement("div");
-  slot.className = "slot";
-  slot.dataset.index = i;
+/* ============================
+   RUNDE STARTEN
+============================ */
 
-  slot.onclick = () => {
-    if(!selectedCard) return;
+function startRound(){
 
-    const idx = parseInt(slot.dataset.index);
-    placeWithShift(idx, selectedCard);
+  const round = rounds[currentRound];
+  document.getElementById("roundTitle").textContent = round.title;
 
-    lastPlaced = selectedCard;
-    selectedCard.classList.remove("selected");
-    selectedCard = null;
-  };
+  players = shuffle([...round.data]);
 
-  timeline.appendChild(slot);
-  slots.push(slot);
+  pool.innerHTML = "";
+  timeline.innerHTML = "";
+  slots = [];
+
+  timeline.style.gridTemplateColumns = `repeat(${round.slotCount},1fr)`;
+
+  // Slots erstellen
+  for(let i=0;i<round.slotCount;i++){
+    const slot = document.createElement("div");
+    slot.className = "slot";
+    slot.dataset.index = i;
+
+    slot.onclick = () => {
+      if(!selectedCard) return;
+      placeWithShift(i, selectedCard);
+      selectedCard.classList.remove("selected");
+      selectedCard = null;
+    };
+
+    timeline.appendChild(slot);
+    slots.push(slot);
+  }
+
+  // Karten erstellen
+  players.forEach(p=>{
+    const div = document.createElement("div");
+    div.className="cardItem";
+    div.dataset.value=p.value;
+
+    div.innerHTML=`
+      <img src="${p.img}">
+      <div>${p.name}</div>
+    `;
+
+    div.onclick=()=>{
+      if(div.classList.contains("fixed")) return;
+      if(selectedCard) selectedCard.classList.remove("selected");
+      selectedCard=div;
+      div.classList.add("selected");
+    };
+
+    pool.appendChild(div);
+  });
+
+  setRandomStarter();
 }
 
-function placeWithShift(targetIndex, card){
+/* ============================
+   ZUFÄLLIGER STARTSPIELER
+============================ */
+
+function setRandomStarter(){
+
+  // alles resetten
+  document.querySelectorAll(".cardItem").forEach(c=>{
+    c.classList.remove("fixed");
+    pool.appendChild(c);
+  });
+
+  const cards = document.querySelectorAll(".cardItem");
+  const randomCard = cards[Math.floor(Math.random()*cards.length)];
+
+  const middle = Math.floor(slots.length/2);
+  slots[middle].appendChild(randomCard);
+
+  randomCard.classList.add("fixed");
+}
+
+/* ============================
+   SHIFT-INSERT
+============================ */
+
+function placeWithShift(index, card){
 
   removeIfExists(card);
 
-  if(slots[targetIndex].children.length === 0){
-    slots[targetIndex].appendChild(card);
+  if(slots[index].children.length===0){
+    slots[index].appendChild(card);
     return;
   }
 
-  let emptyRight = -1;
-  for(let i=targetIndex;i<SLOT_COUNT;i++){
-    if(slots[i].children.length === 0){
-      emptyRight = i;
+  let emptyRight=-1;
+  for(let i=index;i<slots.length;i++){
+    if(slots[i].children.length===0){
+      emptyRight=i;
       break;
     }
   }
 
-  if(emptyRight !== -1){
-    for(let i=emptyRight;i>targetIndex;i--){
-      if(slots[i-1].children.length > 0){
+  if(emptyRight!==-1){
+    for(let i=emptyRight;i>index;i--){
+      if(slots[i-1].children.length>0){
         slots[i].appendChild(slots[i-1].children[0]);
       }
     }
-    slots[targetIndex].appendChild(card);
-    return;
-  }
-
-  let emptyLeft = -1;
-  for(let i=targetIndex;i>=0;i--){
-    if(slots[i].children.length === 0){
-      emptyLeft = i;
-      break;
-    }
-  }
-
-  if(emptyLeft !== -1){
-    for(let i=emptyLeft;i<targetIndex;i++){
-      if(slots[i+1].children.length > 0){
-        slots[i].appendChild(slots[i+1].children[0]);
-      }
-    }
-    slots[targetIndex].appendChild(card);
+    slots[index].appendChild(card);
   }
 }
 
 function removeIfExists(card){
-  for(const s of slots){
-    if(s.children.length > 0 && s.children[0] === card){
-      s.innerHTML = "";
-    }
-  }
-}
-
-/* ========= KARTEN ========= */
-
-players.forEach(p => {
-
-  const div = document.createElement("div");
-  div.className = "cardItem";
-  div.dataset.value = p.value;
-
-  div.innerHTML = `
-    <img src="${p.img}">
-    <div>${p.name}</div>
-  `;
-
-  div.onclick = () => {
-    if(div.classList.contains("fixed")) return;
-
-    if(selectedCard){
-      selectedCard.classList.remove("selected");
-    }
-    selectedCard = div;
-    div.classList.add("selected");
-  };
-
-  pool.appendChild(div);
-});
-
-/* ========= ÜBERPRÜFUNG ========= */
-
-function verifyPlacement(){
-
-  if(!lastPlaced) return;
-
-  let placements = [];
-
-  slots.forEach((slot, index)=>{
-    if(slot.children.length > 0){
-      const card = slot.children[0];
-      placements.push({
-        index:index,
-        value:parseFloat(card.dataset.value),
-        element:card
-      });
+  slots.forEach(s=>{
+    if(s.children.length>0 && s.children[0]===card){
+      s.innerHTML="";
     }
   });
-
-  for(let i=0;i<placements.length;i++){
-    for(let j=i+1;j<placements.length;j++){
-
-      const a = placements[i];
-      const b = placements[j];
-
-      if(a.value < b.value && a.index > b.index){
-        return sendBack(lastPlaced);
-      }
-
-      if(a.value > b.value && a.index < b.index){
-        return sendBack(lastPlaced);
-      }
-    }
-  }
-
-  lastPlaced.classList.add("fixed");
-  lastPlaced = null;
 }
 
-function sendBack(card){
-  card.style.outline = "3px solid red";
-  setTimeout(()=>{
-    card.style.outline = "";
-    pool.appendChild(card);
-  },800);
-  lastPlaced = null;
+/* ============================
+   NÄCHSTE RUNDE
+============================ */
+
+function nextRound(){
+  currentRound++;
+  if(currentRound>=rounds.length) currentRound=0;
+  startRound();
+}
+
+/* ============================
+   SHUFFLE
+============================ */
+
+function shuffle(arr){
+  return arr.sort(()=>Math.random()-0.5);
 }
 
 </script>
