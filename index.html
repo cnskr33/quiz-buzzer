@@ -1,83 +1,107 @@
 <!doctype html>
 <html lang="de">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Quizshow Login</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Quizshow – Einwählen</title>
 
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 
-<script>
-const firebaseConfig = {
-  apiKey: "DEIN_API_KEY",
-  authDomain: "DEIN_PROJECT.firebaseapp.com",
-  databaseURL: "https://testprojekt-dada3-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "DEIN_PROJECT_ID",
-  storageBucket: "DEIN_PROJECT.appspot.com",
-  messagingSenderId: "XXXX",
-  appId: "XXXX"
-};
+  <script>
+    // ========= FIREBASE CONFIG (HIER DEINE ECHTEN DATEN EINTRAGEN) =========
+    const firebaseConfig = {
+      apiKey: "DEIN_API_KEY",
+      authDomain: "DEIN_PROJECT.firebaseapp.com",
+      databaseURL: "https://testprojekt-dada3-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "DEIN_PROJECT_ID",
+      storageBucket: "DEIN_PROJECT.appspot.com",
+      messagingSenderId: "XXXX",
+      appId: "XXXX"
+    };
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-let myName = "";
+    async function enterGame(){
+      const name = document.getElementById("loginName").value.trim();
+      if(!name) return alert("Bitte Name eingeben.");
 
-function enterGame(){
-  const name = document.getElementById("loginName").value.trim();
-  if(!name) return alert("Name eingeben");
+      // Max 5 Spieler
+      const snap = await db.ref("players").get();
+      const count = snap.exists() ? snap.numChildren() : 0;
 
-  db.ref("players").once("value").then(snap=>{
-    if(snap.numChildren() >= 5){
-      alert("Spiel ist voll (max. 5 Spieler)");
-      return;
+      // Wenn der Name schon existiert -> ok (rejoin)
+      const exists = snap.exists() && snap.child(name).exists();
+
+      if(!exists && count >= 5){
+        alert("Spiel ist voll (max. 5 Spieler).");
+        return;
+      }
+
+      // Spieler anlegen (oder rejoinen)
+      const playerRef = db.ref("players/" + name);
+      const playerSnap = await playerRef.get();
+
+      if(!playerSnap.exists()){
+        await playerRef.set({
+          lives: 2,
+          score: 0,
+          joinedAt: Date.now()
+        });
+      } else {
+        // optional: joinedAt updaten, falls du willst:
+        await playerRef.update({ joinedAt: Date.now() });
+      }
+
+      window.location.href = "spiel.html?name=" + encodeURIComponent(name);
     }
+  </script>
 
-    myName = name;
-
-    db.ref("players/" + name).set({
-      lives: 2,
-      score: 0
-    });
-
-    window.location.href = "spiel.html?name=" + encodeURIComponent(name);
-  });
-}
-</script>
-
-<style>
-body{
-  background:#0b1020;
-  color:white;
-  font-family:Arial;
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-  align-items:center;
-  height:100vh;
-  gap:15px;
-}
-input{
-  padding:12px;
-  border-radius:8px;
-  border:none;
-}
-button{
-  padding:12px 20px;
-  border:none;
-  border-radius:8px;
-  background:#2563eb;
-  color:white;
-  cursor:pointer;
-}
-</style>
+  <style>
+    body{
+      margin:0;
+      min-height:100vh;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:14px;
+      background:#0b1020;
+      color:#e9eefc;
+      font-family: system-ui, Arial, sans-serif;
+    }
+    .card{
+      width:min(520px, 92vw);
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 16px;
+      padding: 18px;
+    }
+    h1{ margin:0 0 8px; }
+    input, button{
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.08);
+      color: #e9eefc;
+      padding: 12px 12px;
+      font-size: 15px;
+    }
+    input{ width: 100%; box-sizing:border-box; }
+    button{ cursor:pointer; width: 100%; }
+    button:hover { background: rgba(255,255,255,0.14); }
+    .hint{ opacity:.75; font-size: 13px; margin-top: 8px; line-height:1.4; }
+  </style>
 </head>
+
 <body>
-
-<h1>Quizshow</h1>
-<input id="loginName" placeholder="Dein Name">
-<button onclick="enterGame()">Einwählen</button>
-
+  <div class="card">
+    <h1>Quizshow</h1>
+    <input id="loginName" placeholder="Dein Name" />
+    <button onclick="enterGame()">Einwählen</button>
+    <div class="hint">
+      Hinweis: Maximal 5 Spieler gleichzeitig. Du kannst denselben Namen erneut verwenden (Rejoin).
+    </div>
+  </div>
 </body>
 </html>
