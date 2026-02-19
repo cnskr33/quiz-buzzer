@@ -147,15 +147,27 @@ let poolOrder=[];
 let lastPlacedId=null;
 
 function initRound(){
-const r=rounds[currentRound];
-document.getElementById("title").innerText=r.title;
-slotPlacements=Array(r.items.length).fill(null);
-statusById={};
-poolOrder=r.items.map(x=>x.id);
-shuffle(poolOrder);
-seedMiddle();
-renderAll();
+  const r = rounds[currentRound];
+  document.getElementById("title").innerText = r.title;
+
+  if(!window.isHost) return;
+
+  // Host erstellt neuen globalen State
+  let slots = Array(r.items.length).fill(null);
+  let pool = r.items.map(x => x.id);
+  shuffle(pool);
+
+  // Mittlere Karte setzen
+  const mid = Math.floor(slots.length/2);
+  const id = pool.pop();
+  slots[mid] = id;
+
+  db.ref("game/state").set({
+    slots: slots,
+    pool: pool
+  });
 }
+
 
 function seedMiddle(){
 const mid=Math.floor(slotPlacements.length/2);
@@ -223,30 +235,62 @@ return card;
 }
 
 function insertWithShift(index,id){
-const existing=slotPlacements.indexOf(id);
-if(existing!==-1)slotPlacements[existing]=null;
-slotPlacements[index]=id;
-statusById[id]="pending";
-lastPlacedId=id;
+  if(!window.isHost) return;
+
+  const stateRef = db.ref("game/state");
+
+  stateRef.transaction(state => {
+    if(!state) return state;
+
+    let slots = state.slots;
+    let pool = state.pool;
+
+    const existing = slots.indexOf(id);
+    if(existing !== -1) slots[existing] = null;
+
+    slots[index] = id;
+
+    pool = pool.filter(x => x !== id);
+
+    return {
+      slots: slots,
+      pool: pool
+    };
+  });
 }
 
 function checkPlacement(){
-if(!lastPlacedId)return;
-const values=slotPlacements.map(id=>id?getItem(id).value:null);
-for(let i=1;i<values.length;i++){
-if(values[i]!==null && values[i-1]!==null && values[i]<values[i-1]){
-const wrong=lastPlacedId;
-slotPlacements[slotPlacements.indexOf(wrong)]=null;
-poolOrder.push(wrong);
-statusById[wrong]="pool";
-loseLife();
-renderAll();
-return;
-}
-}
-statusById[lastPlacedId]="fixed";
-lastPlacedId=null;
-renderAll();
+  if(!window.isHost) return;
+
+  const stateRef = db.ref("game/state");
+
+  stateRef.once("value").then(snap => {
+    const state = snap.val();
+    if(!state) return;
+
+    const values = state.slots.map(id => id ? getItem(id).value : null);
+
+    for(let i=1;i<values.length;i++){
+      if(values[i] !== null && values[i-1] !== null && values[i] < values[i-1]){
+
+        let wrongIndex = state.slots.findIndex((id,i)=>{
+          return values[i] !== null &&
+                 values[i-1] !== null &&
+                 values[i] < values[i-1];
+        });
+
+        let wrongId = state.slots[wrongIndex];
+
+        state.slots[wrongIndex] = null;
+        state.pool.push(wrongId);
+
+        stateRef.set(state);
+
+        loseLife();
+        return;
+      }
+    }
+  });
 }
 
 function loseLife(){
@@ -341,6 +385,17 @@ db.ref("game/currentRound").on("value", snap => {
   initRound();
 });
 
+// Globale Spielstate Synchronisation
+db.ref("game/state").on("value", snap => {
+  const state = snap.val();
+  if(!state) return;
+
+  slotPlacements = state.slots || [];
+  poolOrder = state.pool || [];
+
+  renderAll();
+});
+  
 </script>
 </body>
 </html>
