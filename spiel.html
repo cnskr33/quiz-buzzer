@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Quizshow – Spiel</title>
+<title>Quizshow – Zeitstrahl</title>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
@@ -24,182 +24,202 @@ const db = firebase.database();
 const params = new URLSearchParams(window.location.search);
 const playerId = params.get("id");
 if(!playerId){
-  document.body.innerHTML = "<h2>Kein Name übergeben. Bitte über index.html einwählen</h2>";
-  throw new Error("Kein Spieler");
+document.body.innerHTML="<h2>Kein Name übergeben</h2>";
+throw new Error("Kein Spieler");
 }
-const playerRef = db.ref("players/"+playerId);
+const playerRef=db.ref("players/"+playerId);
 playerRef.onDisconnect().remove();
 </script>
 
 <style>
-body{margin:0;background:#0b1020;color:#e9eefc;font-family:Arial}
-.app{padding:20px}
-.timeline{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px}
-.slot{border:2px dashed #555;min-width:140px;min-height:180px;padding:10px;text-align:center}
-.card{background:#1c2545;border-radius:8px;padding:10px;cursor:grab}
-.card img{width:90px;height:90px;object-fit:cover;border-radius:6px}
-.pool{display:flex;gap:10px;flex-wrap:wrap}
-.btn{background:#2563eb;color:white;border:none;padding:8px 12px;border-radius:6px;margin:5px;cursor:pointer}
-.playerBox{background:#1c2545;padding:8px;margin:5px;border-radius:6px}
-.hearts{font-size:18px}
+body{margin:0;background:#0b1020;color:#e9eefc;font-family:system-ui}
+.app{display:grid;grid-template-rows:auto 1fr auto;gap:16px;padding:16px;height:100vh;box-sizing:border-box}
+.card{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:16px;padding:16px}
+.timeline{display:grid;gap:10px;margin-top:12px}
+.slot{border-radius:16px;border:1px dashed rgba(255,255,255,0.3);min-height:170px;padding:10px;display:grid;grid-template-rows:24px 1fr}
+.slotHeader{text-align:center;font-weight:900}
+.slotBody{display:grid;place-items:center}
+.pool{display:grid;grid-template-columns:repeat(8,minmax(120px,1fr));gap:10px;margin-top:8px}
+.cardItem{border-radius:16px;border:1px solid rgba(255,255,255,0.12);background:rgba(0,0,0,0.22);padding:10px;display:grid;gap:8px;justify-items:center;cursor:grab}
+.cardItem img{width:72px;height:72px;border-radius:12px;object-fit:cover}
+.cardItem[data-status="pending"]{outline:2px solid gold}
+.cardItem[data-status="fixed"]{outline:2px solid limegreen}
+.scoreboard{display:grid;grid-template-columns:repeat(5,minmax(160px,1fr));gap:10px}
+.player{padding:10px;border-radius:14px;background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.1)}
+.hearts{font-size:18px;margin-top:4px}
+button{padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#e9eefc;cursor:pointer}
+button:hover{background:rgba(255,255,255,0.2)}
 </style>
 </head>
 
 <body>
 <div class="app">
 
-<h2 id="roundTitle"></h2>
-<button class="btn" onclick="randomStart()">Zufällig</button>
-<button class="btn" onclick="checkOrder()">Überprüfen</button>
-<button class="btn" onclick="nextRound()">Nächste Runde</button>
+<div class="card">
+<h2 id="title"></h2>
+<div>
+<button onclick="checkPlacement()">Überprüfen</button>
+<button onclick="randomizeStart()">Zufällig</button>
+<button onclick="nextRound()">Nächste Runde</button>
+</div>
 
-<hr>
-<h3>Zeitstrahl</h3>
 <div id="timeline" class="timeline"></div>
 
 <h3>Pool</h3>
 <div id="pool" class="pool"></div>
+</div>
 
-<hr>
+<div class="card">
 <h3>Spieler</h3>
-<div id="players"></div>
+<div id="players" class="scoreboard"></div>
+</div>
 
 </div>
 
 <script>
-
-/* ================= RUNDEN ================= */
-
-const rounds = [
-
+const rounds=[
 {
-title:"Runde 1 – Marktwerte Fußball (Mio €)",
+title:"Runde 1 – Marktwerte (Mio €)",
 items:[
-{ id:"yamal", name:"Lamine Yamal", value:258.4, img:"assets/lamine_yamal.jpg"},
-{ id:"mbappe", name:"Kylian Mbappé", value:192.1, img:"assets/kylian_mbappe.jpg"},
-{ id:"vinicius", name:"Vinicius Junior", value:182.7, img:"assets/vinicius_junior.jpg"},
-{ id:"haaland", name:"Erling Haaland", value:177.9, img:"assets/erling_haaland.jpg"},
-{ id:"bellingham", name:"Jude Bellingham", value:177.1, img:"assets/jude_bellingham.jpg"},
-{ id:"olise", name:"Michael Olise", value:156.7, img:"assets/michael_olise.jpg"},
-{ id:"pedri", name:"Pedri", value:142.3, img:"assets/pedri.jpg"},
-{ id:"palmer", name:"Cole Palmer", value:138.7, img:"assets/cole_palmer.jpg"},
-{ id:"musiala", name:"Jamal Musiala", value:130.7, img:"assets/jamal_musiala.jpg"},
-{ id:"wirtz", name:"Florian Wirtz", value:126.5, img:"assets/florian_wirtz.jpg"},
-{ id:"saka", name:"Bukayo Saka", value:123.0, img:"assets/bukayo_saka.jpg"},
-{ id:"cubarsi", name:"Pau Cubarsí", value:122.9, img:"assets/pau_cubarsi.jpg"},
-{ id:"rice", name:"Declan Rice", value:121.1, img:"assets/declan_rice.jpg"},
-{ id:"gyokeres", name:"Viktor Gyökeres", value:120.1, img:"assets/viktor_gyokeres.jpg"},
-{ id:"joaoneves", name:"João Neves", value:129.7, img:"assets/joao_neves.jpg"}
-]
-},
-
-{
-title:"Runde 2 – Kino Umsätze (Mrd $)",
-items:[
-{ id:"avatar", name:"Avatar", value:2.9238, img:"assets/avatar.jpg"},
-{ id:"endgame", name:"Avengers Endgame", value:2.7994, img:"assets/avengers_endgame.jpg"},
-{ id:"titanic", name:"Titanic", value:2.2772, img:"assets/titanic.jpg"},
-{ id:"allesstehtkopf", name:"Alles steht Kopf 2", value:1.6989, img:"assets/alles_steht_kopf_2.jpg"},
-{ id:"harry", name:"Harry Potter 7.2", value:1.3425, img:"assets/harry_potter.jpg"},
-{ id:"mario", name:"Super Mario Bros", value:1.3626, img:"assets/super_mario_bros.jpg"},
-{ id:"lion", name:"König der Löwen", value:1.6630, img:"assets/koenig_der_loewen.jpg"},
-{ id:"starwars", name:"Star Wars 7", value:2.0713, img:"assets/star_wars.jpg"},
-{ id:"frozen", name:"Die Eiskönigin", value:1.2864, img:"assets/eiskoenigin.jpg"},
-{ id:"minions", name:"Minions", value:1.1675, img:"assets/minions.jpg"},
-{ id:"darkknight", name:"Dark Knight Rises", value:1.0852, img:"assets/dark_knight.jpg"},
-{ id:"dorie", name:"Findet Dorie", value:1.0293, img:"assets/findet_dorie.jpg"},
-{ id:"oppenheimer", name:"Oppenheimer", value:0.9762, img:"assets/oppenheimer.jpg"},
-{ id:"inception", name:"Inception", value:0.8499, img:"assets/inception.jpg"},
-{ id:"fast7", name:"Fast & Furious 7", value:1.5198, img:"assets/fast_furious.jpg"}
+{id:"yamal",name:"Lamine Yamal",value:258.4,img:"assets/lamine_yamal.jpg"},
+{id:"mbappe",name:"Kylian Mbappé",value:192.1,img:"assets/kylian_mbappe.jpg"},
+{id:"vinicius",name:"Vinicius Junior",value:182.7,img:"assets/vinicius_junior.jpg"},
+{id:"haaland",name:"Erling Haaland",value:177.9,img:"assets/erling_haaland.jpg"},
+{id:"bellingham",name:"Jude Bellingham",value:177.1,img:"assets/jude_bellingham.jpg"},
+{id:"olise",name:"Michael Olise",value:156.7,img:"assets/michael_olise.jpg"},
+{id:"pedri",name:"Pedri",value:142.3,img:"assets/pedri.jpg"},
+{id:"palmer",name:"Cole Palmer",value:138.7,img:"assets/cole_palmer.jpg"},
+{id:"musiala",name:"Jamal Musiala",value:130.7,img:"assets/jamal_musiala.jpg"},
+{id:"wirtz",name:"Florian Wirtz",value:126.5,img:"assets/florian_wirtz.jpg"},
+{id:"saka",name:"Bukayo Saka",value:123.0,img:"assets/bukayo_saka.jpg"},
+{id:"cubarsi",name:"Pau Cubarsí",value:122.9,img:"assets/pau_cubarsi.jpg"},
+{id:"rice",name:"Declan Rice",value:121.1,img:"assets/declan_rice.jpg"},
+{id:"gyokeres",name:"Viktor Gyökeres",value:120.1,img:"assets/viktor_gyokeres.jpg"},
+{id:"joaoneves",name:"João Neves",value:129.7,img:"assets/joao_neves.jpg"}
 ]
 }
-
 ];
 
 let currentRound=0;
-let placements=[];
-let pool=[];
-
-/* ================= SPIEL LOGIK ================= */
+let slotPlacements=[];
+let statusById={};
+let poolOrder=[];
+let lastPlacedId=null;
 
 function initRound(){
 const r=rounds[currentRound];
-document.getElementById("roundTitle").innerText=r.title;
-placements=[];
-pool=[...r.items];
-shuffle(pool);
-randomStart();
+document.getElementById("title").innerText=r.title;
+slotPlacements=Array(r.items.length).fill(null);
+statusById={};
+poolOrder=r.items.map(x=>x.id);
+shuffle(poolOrder);
+seedMiddle();
+renderAll();
 }
 
-function randomStart(){
-pool=[...rounds[currentRound].items];
-shuffle(pool);
-placements=[pool.pop()];
-render();
+function seedMiddle(){
+const mid=Math.floor(slotPlacements.length/2);
+const id=poolOrder.pop();
+slotPlacements[mid]=id;
+statusById[id]="fixed";
 }
 
-function render(){
+function randomizeStart(){
+initRound();
+}
+
+function renderAll(){
+renderTimeline();
+renderPool();
+}
+
+function renderTimeline(){
 const timeline=document.getElementById("timeline");
+timeline.style.gridTemplateColumns=`repeat(${slotPlacements.length},minmax(64px,1fr))`;
 timeline.innerHTML="";
-placements.forEach((item,i)=>{
+slotPlacements.forEach((id,i)=>{
 const slot=document.createElement("div");
 slot.className="slot";
-slot.innerHTML=`<div class="card" draggable="true">
-<img src="${item.img}">
-<div>${item.name}</div></div>`;
+const header=document.createElement("div");
+header.className="slotHeader";
+header.innerText=i+1;
+const body=document.createElement("div");
+body.className="slotBody";
+if(id){
+body.appendChild(makeCard(getItem(id),true));
+}else{
+body.innerText="Drop";
+}
+slot.appendChild(header);
+slot.appendChild(body);
 slot.ondragover=e=>e.preventDefault();
 slot.ondrop=e=>{
 e.preventDefault();
-const id=e.dataTransfer.getData("id");
-const item=pool.find(x=>x.id===id);
-if(!item)return;
-pool=pool.filter(x=>x.id!==id);
-placements.splice(i,0,item);
-render();
+const dropped=e.dataTransfer.getData("id");
+insertWithShift(i,dropped);
+renderAll();
 };
 timeline.appendChild(slot);
 });
+}
 
-const poolDiv=document.getElementById("pool");
-poolDiv.innerHTML="";
-pool.forEach(item=>{
-const card=document.createElement("div");
-card.className="card";
-card.draggable=true;
-card.ondragstart=e=>e.dataTransfer.setData("id",item.id);
-card.innerHTML=`<img src="${item.img}"><div>${item.name}</div>`;
-poolDiv.appendChild(card);
+function renderPool(){
+const pool=document.getElementById("pool");
+pool.innerHTML="";
+poolOrder.forEach(id=>{
+if(slotPlacements.includes(id))return;
+pool.appendChild(makeCard(getItem(id),false));
 });
 }
 
-function checkOrder(){
-const correct=[...placements].sort((a,b)=>a.value-b.value);
-for(let i=0;i<placements.length;i++){
-if(placements[i].id!==correct[i].id){
-const wrong=placements[i];
-placements.splice(i,1);
-pool.push(wrong);
+function makeCard(item,inSlot){
+const card=document.createElement("div");
+card.className="cardItem";
+card.dataset.status=statusById[item.id]||"pool";
+card.draggable=true;
+card.innerHTML=`<img src="${item.img}"><div>${item.name}</div>`;
+card.ondragstart=e=>e.dataTransfer.setData("id",item.id);
+return card;
+}
+
+function insertWithShift(index,id){
+const existing=slotPlacements.indexOf(id);
+if(existing!==-1)slotPlacements[existing]=null;
+slotPlacements[index]=id;
+statusById[id]="pending";
+lastPlacedId=id;
+}
+
+function checkPlacement(){
+if(!lastPlacedId)return;
+const values=slotPlacements.map(id=>id?getItem(id).value:null);
+for(let i=1;i<values.length;i++){
+if(values[i]!==null && values[i-1]!==null && values[i]<values[i-1]){
+const wrong=lastPlacedId;
+slotPlacements[slotPlacements.indexOf(wrong)]=null;
+poolOrder.push(wrong);
+statusById[wrong]="pool";
 loseLife();
-render();
+renderAll();
 return;
 }
 }
-alert("Richtig!");
+statusById[lastPlacedId]="fixed";
+lastPlacedId=null;
+renderAll();
 }
 
 function loseLife(){
 playerRef.transaction(data=>{
 if(!data)return data;
 data.lives=(data.lives||2)-1;
-if(data.lives<=0) data.lives=0;
+if(data.lives<0)data.lives=0;
 return data;
 });
 }
 
-function nextRound(){
-currentRound++;
-if(currentRound>=rounds.length) currentRound=0;
-initRound();
+function getItem(id){
+return rounds[currentRound].items.find(x=>x.id===id);
 }
 
 function shuffle(arr){
@@ -209,22 +229,26 @@ const j=Math.floor(Math.random()*(i+1));
 }
 }
 
-/* ================= SPIELER ================= */
+function nextRound(){
+currentRound++;
+if(currentRound>=rounds.length)currentRound=0;
+initRound();
+}
 
+/* Spieler Anzeige */
 db.ref("players").on("value",snap=>{
 const container=document.getElementById("players");
 container.innerHTML="";
 snap.forEach(child=>{
 const data=child.val();
 const div=document.createElement("div");
-div.className="playerBox";
-div.innerHTML=`<strong>${data.name}</strong>
+div.className="player";
+div.innerHTML=`<strong>${data.name||""}</strong>
 <div class="hearts">${"❤️".repeat(data.lives||2)}</div>`;
 container.appendChild(div);
 });
 });
 
-/* START */
 initRound();
 </script>
 </body>
