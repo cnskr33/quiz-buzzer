@@ -394,18 +394,24 @@ db.ref("game/currentRound").on("value", snap => {
   currentRound = value;
 });
 
-
 // Globale Spielstate Synchronisation
 db.ref("game/state").on("value", snap => {
   const state = snap.val();
   if(!state) return;
 
-  slotPlacements = state.slots || [];
-  poolOrder = state.pool || [];
+  // Firebase kann Arrays als Objekt speichern → in echtes Array umwandeln
+  slotPlacements = Array.isArray(state.slots)
+    ? state.slots
+    : Object.values(state.slots || {});
+
+  poolOrder = Array.isArray(state.pool)
+    ? state.pool
+    : Object.values(state.pool || {});
 
   renderAll();
 });
-  
+
+
 </script>
 </body>
 </html>
