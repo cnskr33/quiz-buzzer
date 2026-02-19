@@ -20,7 +20,8 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-// Spieler-ID aus URL ODER sessionStorage holen
+
+// Spieler-ID holen
 const params = new URLSearchParams(window.location.search);
 let playerId = params.get("id") || sessionStorage.getItem("playerId");
 
@@ -31,20 +32,18 @@ if(!playerId){
 
 const playerRef = db.ref("players/" + playerId);
 
-// Falls Spieler noch nicht existiert → neu anlegen
-playerRef.once("value").then(snap => {
-  if(!snap.exists()){
-    const playerName = sessionStorage.getItem("playerName") || "Spieler";
-    playerRef.set({
-      name: playerName,
-      lives: 2,
-      joinedAt: Date.now()
-    });
-  }
+// Spieler sofort setzen (ohne Promise)
+const playerName = sessionStorage.getItem("playerName") || "Spieler";
+
+playerRef.set({
+  name: playerName,
+  lives: 2,
+  joinedAt: Date.now()
 });
 
-// Bei Disconnect löschen
+// Disconnect entfernen
 playerRef.onDisconnect().remove();
+
 
 
 <style>
