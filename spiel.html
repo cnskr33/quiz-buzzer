@@ -49,6 +49,13 @@ hostRef.transaction(currentHost => {
   return currentHost;
 });
 
+// Wenn erster Host → Runde auf 0 setzen
+db.ref("game/currentRound").once("value").then(snap => {
+  if(snap.val() === null){
+    db.ref("game/currentRound").set(0);
+  }
+});
+  
 // Host löschen wenn er disconnectet
 playerRef.onDisconnect().remove();
 
