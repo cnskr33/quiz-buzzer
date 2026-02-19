@@ -3,77 +3,55 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Quizshow – Runden</title>
+<title>Quizshow – Showmodus</title>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCob25y3pT7O6wjf21l9xiaCXhGMFLzFQg",
+  authDomain: "testprojekt-dada3.firebaseapp.com",
+  databaseURL: "https://testprojekt-dada3-default-rtdb.europe-west1.firebasedatabase.appL",
+  projectId: "testprojekt-dada3",
+  storageBucket: "testprojekt-dada3.firebasestorage.app",
+  messagingSenderId: "651866459764",
+  appId: "1:651866459764:web:ed23cf3fd5ccf02a42cb21"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+</script>
 
 <style>
 body{margin:0;font-family:Arial;background:#0b1020;color:#e9eefc;padding:20px}
-
-button{
-  padding:8px 14px;
-  margin:5px;
-  border:none;
-  border-radius:8px;
-  cursor:pointer;
-  background:#2563eb;
-  color:white;
-}
-
-.timeline{
-  display:grid;
-  gap:8px;
-  margin-top:20px;
-  margin-bottom:30px;
-}
-
-.slot{
-  min-height:130px;
-  border:2px dashed rgba(255,255,255,0.3);
-  border-radius:10px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-
-.pool{
-  display:grid;
-  grid-template-columns: repeat(5,1fr);
-  gap:12px;
-}
-
-.cardItem{
-  background: rgba(0,0,0,0.4);
-  border-radius:12px;
-  padding:8px;
-  text-align:center;
-  cursor:pointer;
-  transition:0.2s;
-}
-
-.cardItem img{
-  width:70px;
-  height:70px;
-  object-fit:cover;
-  border-radius:8px;
-  display:block;
-  margin:auto;
-  margin-bottom:6px;
-}
-
-.cardItem:hover{
-  transform:scale(1.05);
-}
-
-.selected{ outline:3px solid yellow; }
-.fixed{ outline:3px solid lime; }
+button{padding:8px 14px;margin:5px;border:none;border-radius:8px;cursor:pointer}
+.timeline{display:grid;gap:8px;margin-top:20px;margin-bottom:30px}
+.slot{min-height:120px;border:2px dashed rgba(255,255,255,0.3);border-radius:10px;display:flex;align-items:center;justify-content:center}
+.pool{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.cardItem{background:rgba(0,0,0,0.4);border-radius:12px;padding:8px;text-align:center;cursor:pointer}
+.cardItem img{width:60px;height:60px;object-fit:cover;border-radius:8px;display:block;margin:auto;margin-bottom:6px}
+.selected{outline:3px solid yellow}
+.fixed{outline:3px solid lime}
+.playerBox{background:#222;padding:10px;border-radius:10px;margin:5px;display:inline-block}
 </style>
 </head>
 
 <body>
 
-<h2 id="roundTitle">Runde</h2>
+<h2 id="roundTitle"></h2>
 
 <button onclick="setRandomStarter()">Zufällig</button>
 <button onclick="nextRound()">Nächste Runde</button>
+<button onclick="toggleBuzzer()">Buzzer Sperren/Freigeben</button>
+
+<h3>Spieler hinzufügen</h3>
+<input id="newPlayer" placeholder="Name">
+<button onclick="addGamePlayer()">Hinzufügen</button>
+
+<div id="playerBoard"></div>
+
+<hr>
 
 <div id="timeline" class="timeline"></div>
 
@@ -92,85 +70,58 @@ const rounds = [
   slotCount:15,
   data:[
     { name:"Lamine Yamal", value:258.4, img:"assets/lamine_yamal.jpg" },
-    { name:"Kylian Mbappé", value:192.1, img:"assets/kylian_mbappe.jpg" },
-    { name:"Vinicius Junior", value:182.7, img:"assets/vinicius_junior.jpg" },
-    { name:"Erling Haaland", value:177.9, img:"assets/erling_haaland.jpg" },
-    { name:"Jude Bellingham", value:177.1, img:"assets/jude_bellingham.jpg" },
-    { name:"Michael Olise", value:156.7, img:"assets/michael_olise.jpg" },
-    { name:"Pedri", value:142.3, img:"assets/pedri.jpg" },
-    { name:"Cole Palmer", value:138.7, img:"assets/cole_palmer.jpg" },
-    { name:"Jamal Musiala", value:130.7, img:"assets/jamal_musiala.jpg" },
-    { name:"João Neves", value:129.7, img:"assets/joao_neves.jpg" },
-    { name:"Florian Wirtz", value:126.5, img:"assets/florian_wirtz.jpg" },
-    { name:"Bukayo Saka", value:123.0, img:"assets/bukayo_saka.jpg" },
-    { name:"Pau Cubarsí", value:122.9, img:"assets/pau_cubarsi.jpg" },
-    { name:"Declan Rice", value:121.1, img:"assets/declan_rice.jpg" },
-    { name:"Viktor Gyökeres", value:120.1, img:"assets/viktor_gyokeres.jpg" }
-  ]
-},
-{
-  title:"Runde 2 – Platzhalter",
-  slotCount:10,
-  data:[
-    { name:"Platzhalter 1", value:10, img:"assets/lamine_yamal.jpg" },
-    { name:"Platzhalter 2", value:20, img:"assets/lamine_yamal.jpg" }
+    { name:"Mbappé", value:192.1, img:"assets/kylian_mbappe.jpg" },
+    { name:"Haaland", value:177.9, img:"assets/erling_haaland.jpg" },
+    { name:"Pedri", value:142.3, img:"assets/pedri.jpg" }
   ]
 }
 ];
 
-let currentRound = 0;
-let players = [];
-let selectedCard = null;
-let slots = [];
+let currentRound=0;
+let players=[];
+let selectedCard=null;
+let slots=[];
+let gamePlayers=[];
+let buzzerEnabled=true;
 
-const pool = document.getElementById("pool");
-const timeline = document.getElementById("timeline");
-
-/* ============================
-   INIT
-============================ */
-
-startRound();
+const pool=document.getElementById("pool");
+const timeline=document.getElementById("timeline");
 
 /* ============================
-   RUNDE STARTEN
+   RUNDE
 ============================ */
 
 function startRound(){
 
-  const round = rounds[currentRound];
-  document.getElementById("roundTitle").textContent = round.title;
+  const round=rounds[currentRound];
+  document.getElementById("roundTitle").textContent=round.title;
 
-  players = shuffle([...round.data]);
+  players=shuffle([...round.data]);
 
-  pool.innerHTML = "";
-  timeline.innerHTML = "";
-  slots = [];
+  pool.innerHTML="";
+  timeline.innerHTML="";
+  slots=[];
 
-  timeline.style.gridTemplateColumns = `repeat(${round.slotCount},1fr)`;
+  timeline.style.gridTemplateColumns=`repeat(${round.slotCount},1fr)`;
 
-  // Slots erstellen
   for(let i=0;i<round.slotCount;i++){
-    const slot = document.createElement("div");
-    slot.className = "slot";
-    slot.dataset.index = i;
-
-    slot.onclick = () => {
+    const slot=document.createElement("div");
+    slot.className="slot";
+    slot.onclick=()=>{
       if(!selectedCard) return;
-      placeWithShift(i, selectedCard);
+      placeWithShift(i,selectedCard);
       selectedCard.classList.remove("selected");
-      selectedCard = null;
+      selectedCard=null;
     };
-
     timeline.appendChild(slot);
     slots.push(slot);
   }
 
-  // Karten erstellen
   players.forEach(p=>{
-    const div = document.createElement("div");
+    const div=document.createElement("div");
     div.className="cardItem";
     div.dataset.value=p.value;
+    div.dataset.name=p.name;
 
     div.innerHTML=`
       <img src="${p.img}">
@@ -187,35 +138,79 @@ function startRound(){
     pool.appendChild(div);
   });
 
+  gamePlayers.forEach(p=>p.lives=2);
+  renderPlayers();
   setRandomStarter();
 }
 
 /* ============================
-   ZUFÄLLIGER STARTSPIELER
+   SPIELER
+============================ */
+
+function addGamePlayer(){
+  const name=document.getElementById("newPlayer").value.trim();
+  if(!name) return;
+  if(gamePlayers.length>=5) return alert("Max 5 Spieler");
+
+  gamePlayers.push({name:name,lives:2});
+  document.getElementById("newPlayer").value="";
+  renderPlayers();
+}
+
+function renderPlayers(){
+  const board=document.getElementById("playerBoard");
+  board.innerHTML="";
+  gamePlayers.forEach(p=>{
+    const div=document.createElement("div");
+    div.className="playerBox";
+    div.innerHTML=`<strong>${p.name}</strong><br>${"❤️".repeat(p.lives)}`;
+    board.appendChild(div);
+  });
+}
+
+function loseLife(playerName){
+  const p=gamePlayers.find(x=>x.name===playerName);
+  if(!p) return;
+  p.lives--;
+  if(p.lives<=0){
+    alert(playerName+" ist ausgeschieden!");
+  }
+  renderPlayers();
+}
+
+/* ============================
+   BUZZER CONTROL
+============================ */
+
+function toggleBuzzer(){
+  buzzerEnabled=!buzzerEnabled;
+  db.ref("buzzerEnabled").set(buzzerEnabled);
+  alert("Buzzer "+(buzzerEnabled?"aktiv":"gesperrt"));
+}
+
+/* ============================
+   ZUFALLS START
 ============================ */
 
 function setRandomStarter(){
 
-  // alles resetten
   document.querySelectorAll(".cardItem").forEach(c=>{
     c.classList.remove("fixed");
     pool.appendChild(c);
   });
 
-  const cards = document.querySelectorAll(".cardItem");
-  const randomCard = cards[Math.floor(Math.random()*cards.length)];
-
-  const middle = Math.floor(slots.length/2);
+  const cards=document.querySelectorAll(".cardItem");
+  const randomCard=cards[Math.floor(Math.random()*cards.length)];
+  const middle=Math.floor(slots.length/2);
   slots[middle].appendChild(randomCard);
-
   randomCard.classList.add("fixed");
 }
 
 /* ============================
-   SHIFT-INSERT
+   SHIFT
 ============================ */
 
-function placeWithShift(index, card){
+function placeWithShift(index,card){
 
   removeIfExists(card);
 
@@ -226,10 +221,7 @@ function placeWithShift(index, card){
 
   let emptyRight=-1;
   for(let i=index;i<slots.length;i++){
-    if(slots[i].children.length===0){
-      emptyRight=i;
-      break;
-    }
+    if(slots[i].children.length===0){emptyRight=i;break;}
   }
 
   if(emptyRight!==-1){
@@ -251,22 +243,15 @@ function removeIfExists(card){
 }
 
 /* ============================
-   NÄCHSTE RUNDE
-============================ */
-
-function nextRound(){
-  currentRound++;
-  if(currentRound>=rounds.length) currentRound=0;
-  startRound();
-}
-
-/* ============================
    SHUFFLE
 ============================ */
 
 function shuffle(arr){
   return arr.sort(()=>Math.random()-0.5);
 }
+
+/* INIT */
+startRound();
 
 </script>
 
