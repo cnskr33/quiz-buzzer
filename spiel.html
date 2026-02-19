@@ -189,41 +189,50 @@ renderPool();
 }
 
 function renderTimeline(){
-const timeline=document.getElementById("timeline");
+  const timeline = document.getElementById("timeline");
 
-// Wenn noch kein State da ist, trotzdem Slots anzeigen
-const len = (slotPlacements && slotPlacements.length) ? slotPlacements.length : rounds[currentRound].items.length;
+  const len = (slotPlacements && slotPlacements.length)
+    ? slotPlacements.length
+    : rounds[currentRound].items.length;
 
-timeline.style.gridTemplateColumns=`repeat(${len},minmax(64px,1fr))`;
-timeline.innerHTML="";
+  timeline.style.gridTemplateColumns = `repeat(${len}, minmax(64px,1fr))`;
+  timeline.innerHTML = "";
 
-for(let i=0;i<len;i++){
-  const id = slotPlacements[i] || null;
-  
-const slot=document.createElement("div");
-slot.className="slot";
-const header=document.createElement("div");
-header.className="slotHeader";
-header.innerText=i+1;
-const body=document.createElement("div");
-body.className="slotBody";
-if(id){
-body.appendChild(makeCard(getItem(id),true));
-}else{
-body.innerText="Drop";
+  for(let i = 0; i < len; i++){
+
+    const id = slotPlacements[i] || null;
+
+    const slot = document.createElement("div");
+    slot.className = "slot";
+
+    const header = document.createElement("div");
+    header.className = "slotHeader";
+    header.innerText = i + 1;
+
+    const body = document.createElement("div");
+    body.className = "slotBody";
+
+    if(id){
+      body.appendChild(makeCard(getItem(id), true));
+    } else {
+      body.innerText = "Drop";
+    }
+
+    slot.appendChild(header);
+    slot.appendChild(body);
+
+    slot.ondragover = e => e.preventDefault();
+
+    slot.ondrop = e => {
+      e.preventDefault();
+      const dropped = e.dataTransfer.getData("id");
+      insertWithShift(i, dropped);
+    };
+
+    timeline.appendChild(slot);
+  }
 }
-slot.appendChild(header);
-slot.appendChild(body);
-slot.ondragover=e=>e.preventDefault();
-slot.ondrop=e=>{
-e.preventDefault();
-const dropped=e.dataTransfer.getData("id");
-insertWithShift(i,dropped);
-renderAll();
-};
-timeline.appendChild(slot);
-}
-}
+
 
 function renderPool(){
   const pool = document.getElementById("pool");
