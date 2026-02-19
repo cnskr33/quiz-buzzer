@@ -18,6 +18,7 @@ const firebaseConfig = {
   messagingSenderId: "651866459764",
   appId: "1:651866459764:web:ed23cf3fd5ccf02a42cb21"
 };
+
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
@@ -26,13 +27,10 @@ const params = new URLSearchParams(window.location.search);
 let playerId = params.get("id") || sessionStorage.getItem("playerId");
 
 if(!playerId){
-  document.body.innerHTML="<h2>Kein Spieler gefunden</h2>";
-  throw new Error("Kein Spieler");
+  window.location.href = "index.html";
 }
 
 const playerRef = db.ref("players/" + playerId);
-
-// Spieler sofort setzen (ohne Promise)
 const playerName = sessionStorage.getItem("playerName") || "Spieler";
 
 playerRef.set({
@@ -41,15 +39,8 @@ playerRef.set({
   joinedAt: Date.now()
 });
 
-// Disconnect entfernen
-// Disconnect entfernen
 playerRef.onDisconnect().remove();
 </script>
-
-<style>
-
-
-
 
 <style>
 body{margin:0;background:#0b1020;color:#e9eefc;font-family:system-ui}
@@ -71,6 +62,7 @@ button{padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.2)
 button:hover{background:rgba(255,255,255,0.2)}
 </style>
 </head>
+
 
 <body>
 <div class="app">
