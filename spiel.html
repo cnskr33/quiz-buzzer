@@ -416,6 +416,15 @@ db.ref("game/currentRound").on("value", snap => {
   if(value === null) return;
 
   currentRound = value;
+
+  // Wenn ich Host bin → prüfen ob State existiert
+  if(window.isHost){
+    db.ref("game/state").once("value").then(st => {
+      if(!st.exists()){
+        initRound();
+      }
+    });
+  }
 });
 
 db.ref("game/state").on("value", snap => {
@@ -429,12 +438,7 @@ db.ref("game/state").on("value", snap => {
   renderAll();
 });
 
-// DEBUG: Wenn kein State existiert, sofort erzeugen
-db.ref("game/state").once("value").then(snap => {
-  if(!snap.exists() && window.isHost){
-    initRound();
-  }
-});
+
   
 </script>
 </body>
