@@ -429,6 +429,13 @@ db.ref("game/state").on("value", snap => {
   renderAll();
 });
 
+// DEBUG: Wenn kein State existiert, sofort erzeugen
+db.ref("game/state").once("value").then(snap => {
+  if(!snap.exists() && window.isHost){
+    initRound();
+  }
+});
+  
 </script>
 </body>
 </html>
