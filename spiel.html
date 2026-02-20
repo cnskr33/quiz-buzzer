@@ -371,7 +371,6 @@ container.appendChild(div);
 });
 
 
-
 // Host-UI + Init
 db.ref("game/host").on("value", snap => {
   const hostId = snap.val();
@@ -391,16 +390,24 @@ db.ref("game/host").on("value", snap => {
     if(cur === null) return 0;
     return cur;
   }).then(() => {
-   db.ref("game/currentRound").once("value").then(s => {
-  currentRound = s.val() ?? 0;
 
-  // State nur erzeugen, wenn noch keiner existiert
-  db.ref("game/state").once("value").then(st => {
-    if(!st.exists()){
-      initRound();
-    }
+    db.ref("game/currentRound").once("value").then(s => {
+      currentRound = s.val() ?? 0;
+
+      // State nur erzeugen, wenn noch keiner existiert
+      db.ref("game/state").once("value").then(st => {
+        if(!st.exists()){
+          initRound();
+        }
+      });
+
+    });
+
   });
+
 });
+
+
 
   
 // Globale Rundensynchronisation
