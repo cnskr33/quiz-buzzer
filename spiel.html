@@ -27,6 +27,27 @@
     const db = firebase.database();
 // 🔊 Globaler Buzzer-Sound
 const buzzerSound = new Audio("https://actions.google.com/sounds/v1/alarms/buzzer.ogg");
+let soundEnabled = false;
+
+function unlockSound(){
+  if(soundEnabled) return;
+  soundEnabled = true;
+
+  // einmal kurz "anstoßen", damit Browser Audio erlaubt
+  buzzerSound.volume = 0;
+  buzzerSound.play().then(() => {
+    buzzerSound.pause();
+    buzzerSound.currentTime = 0;
+    buzzerSound.volume = 1;
+  }).catch(() => {
+    // wenn es hier scheitert: Nutzer muss evtl. nochmal klicken
+  });
+}
+
+// beim ersten User-Input Audio freischalten
+document.addEventListener("click", unlockSound, { once:true });
+document.addEventListener("touchstart", unlockSound, { once:true });
+document.addEventListener("keydown", unlockSound, { once:true });
 buzzerSound.preload = "auto";
   </script>
 
@@ -566,6 +587,8 @@ buzzerSound.preload = "auto";
     // Buzzer (First press wins)
     // ------------------------------
     function buzz(){
+       unlockSound();
+         
       buzzerRef.transaction(cur => {
         if(cur && cur.lockedBy) return;
         return { lockedBy: myId, lockedName: myName, lockedAt: Date.now() };
