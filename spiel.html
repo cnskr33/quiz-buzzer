@@ -1,6 +1,3 @@
-<!-- =========================
-     spiel.html (OHNE HOST)
-     ========================= -->
 <!doctype html>
 <html lang="de">
 <head>
@@ -25,30 +22,6 @@
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-// 🔊 Globaler Buzzer-Sound
-const buzzerSound = new Audio("https://actions.google.com/sounds/v1/alarms/buzzer.ogg");
-let soundEnabled = false;
-
-function unlockSound(){
-  if(soundEnabled) return;
-  soundEnabled = true;
-
-  // einmal kurz "anstoßen", damit Browser Audio erlaubt
-  buzzerSound.volume = 0;
-  buzzerSound.play().then(() => {
-    buzzerSound.pause();
-    buzzerSound.currentTime = 0;
-    buzzerSound.volume = 1;
-  }).catch(() => {
-    // wenn es hier scheitert: Nutzer muss evtl. nochmal klicken
-  });
-}
-
-// beim ersten User-Input Audio freischalten
-document.addEventListener("click", unlockSound, { once:true });
-document.addEventListener("touchstart", unlockSound, { once:true });
-document.addEventListener("keydown", unlockSound, { once:true });
-buzzerSound.preload = "auto";
   </script>
 
   <style>
@@ -63,6 +36,8 @@ buzzerSound.preload = "auto";
     --accent:#7C5CFF;
     --accent2:#24D8FF;
     --bad:#FF4D6D;
+    --gold:#FFD66E;
+    --good:#38F6A6;
   }
 
   body{
@@ -117,17 +92,19 @@ buzzerSound.preload = "auto";
     padding: 10px 12px;
     font-size: 14px;
     outline: none;
+    transition: transform 120ms ease, background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
   }
 
   button{
     cursor:pointer;
     font-weight:800;
   }
-  button:hover{ background: rgba(255,255,255,0.10); }
-  button:disabled{ opacity:.55; cursor:not-allowed; }
+  button:hover{ background: rgba(255,255,255,0.10); transform: translateY(-1px); }
+  button:active{ transform: translateY(0px) scale(0.99); }
+  button:disabled{ opacity:.55; cursor:not-allowed; transform:none; }
 
   .danger{ border-color: rgba(255,77,109,0.40); }
-  .danger:hover{ background: rgba(255,77,109,0.14); }
+  .danger:hover{ background: rgba(255,77,109,0.14); border-color: rgba(255,77,109,0.55); }
 
   .boardWrap{
     border-radius:18px;
@@ -184,6 +161,7 @@ buzzerSound.preload = "auto";
     border:1px solid rgba(255,255,255,0.14);
     box-shadow: 0 10px 28px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.08);
   }
+
   .qbtn.used{
     background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.03));
     border-style: dashed;
@@ -200,7 +178,8 @@ buzzerSound.preload = "auto";
   .player{
     border-radius:16px;
     border:1px solid rgba(255,255,255,0.12);
-    background: radial-gradient(220px 120px at 20% 0%, rgba(124,92,255,0.14), transparent 70%),
+    background:
+      radial-gradient(220px 120px at 20% 0%, rgba(124,92,255,0.14), transparent 70%),
       rgba(0,0,0,0.20);
     padding:12px;
     display:flex;
@@ -210,9 +189,35 @@ buzzerSound.preload = "auto";
     box-shadow: 0 12px 30px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.06);
   }
 
+  .player.me{
+    outline:2px solid rgba(36,216,255,0.45);
+    outline-offset:2px;
+  }
+
+  .player.winner{
+    outline:2px solid rgba(255,214,110,0.70);
+    outline-offset:2px;
+    box-shadow:
+      0 14px 36px rgba(0,0,0,0.36),
+      0 0 0 6px rgba(255,214,110,0.12),
+      inset 0 1px 0 rgba(255,255,255,0.08);
+  }
+
   .pname{ font-weight:900; color: rgba(234,240,255,0.92); }
   .pscore{ font-weight:950; font-size:22px; min-width:60px; text-align:right; }
 
+  .buzzInline{
+    padding:8px 10px;
+    border-radius:12px;
+    font-weight:950;
+    border:1px solid rgba(255,255,255,0.18);
+    background: rgba(255,255,255,0.08);
+    cursor:pointer;
+  }
+  .buzzInline:hover{ background: rgba(255,255,255,0.12); }
+  .buzzInline:disabled{ opacity:.55; cursor:not-allowed; }
+
+  /* Modal */
   .backdrop{
     position:fixed;
     inset:0;
@@ -288,6 +293,9 @@ buzzerSound.preload = "auto";
     <div class="top">
       <div class="row">
         <div class="badge" id="turnBadge">Verbinde…</div>
+        <div class="badge" id="buzzBadge">Buzzer: —</div>
+        <button id="toggleBuzz">🔒 Buzzer sperren</button>
+        <button id="resetBuzz">🔁 Buzzer Reset</button>
         <button id="resetGame" class="danger">Game Reset</button>
       </div>
 
@@ -309,7 +317,7 @@ buzzerSound.preload = "auto";
       <div>
         <h3 id="mTitle">Kategorie – 100</h3>
         <div class="meta" id="mMeta"></div>
-        <div id="buzzWinner" style="font-size:20px;font-weight:900;color:#FFD66E;text-align:center;">
+        <div id="buzzWinner" style="font-size:18px;font-weight:950;color:var(--gold);text-align:center;"></div>
       </div>
 
       <img id="mImage" style="display:none;" />
@@ -318,11 +326,6 @@ buzzerSound.preload = "auto";
       <div class="answer" id="mAnswer"></div>
 
       <div class="actions">
-        <div id="buzzInfo" style="margin-right:auto; opacity:.85; font-weight:900;"></div>
-
-        <button id="buzzBtn">🔔 Buzzern</button>
-        <button id="resetBuzzBtn">Buzzer Reset</button>
-
         <button id="showAnswer">Antwort zeigen</button>
         <button id="markWrong" class="danger">Falsch</button>
         <button id="markRight">Richtig (+Punkte)</button>
@@ -332,6 +335,28 @@ buzzerSound.preload = "auto";
   </div>
 
   <script>
+    // ------------------------------
+    // 🔊 Optionaler Sound (Browser braucht 1x User-Interaktion)
+    // ------------------------------
+    const buzzerSound = new Audio("https://actions.google.com/sounds/v1/alarms/buzzer.ogg");
+    buzzerSound.preload = "auto";
+    let soundEnabled = false;
+
+    function unlockSound(){
+      if(soundEnabled) return;
+      soundEnabled = true;
+      buzzerSound.volume = 0;
+      buzzerSound.play().then(() => {
+        buzzerSound.pause();
+        buzzerSound.currentTime = 0;
+        buzzerSound.volume = 1;
+      }).catch(() => {});
+    }
+
+    document.addEventListener("click", unlockSound, { once:true });
+    document.addEventListener("touchstart", unlockSound, { once:true });
+    document.addEventListener("keydown", unlockSound, { once:true });
+
     // ------------------------------
     // Daten
     // ------------------------------
@@ -417,6 +442,10 @@ buzzerSound.preload = "auto";
     let players = [];
     let currentPick = null;
 
+    // Buzzer State
+    let buzzerEnabled = true;
+    let buzzerState = { lockedBy: null, lockedName: null, lockedAt: null };
+
     // ------------------------------
     // Firebase setup (Player)
     // ------------------------------
@@ -432,19 +461,36 @@ buzzerSound.preload = "auto";
     const playersRef = db.ref("players");
     const questionRef = db.ref("game/currentQuestion");
     const buzzerRef = db.ref("game/buzzer");
+    const buzzerEnabledRef = db.ref("game/buzzerEnabled");
     const usedRef = db.ref("game/used");
     const roundRef = db.ref("game/roundState");
 
-    // Player presence
+    // Presence
     myRef.set({ name: myName, score: 0, joinedAt: Date.now() });
     myRef.onDisconnect().remove();
 
-    function updateBadge(){
-      document.getElementById("turnBadge").textContent =
-        `Runde ${round} – Du: ${myName}`;
+    function updateBadges(){
+      document.getElementById("turnBadge").textContent = `Runde ${round} – Du: ${myName}`;
+
+      const bb = document.getElementById("buzzBadge");
+      if(!buzzerEnabled){
+        bb.textContent = "Buzzer: GESPERRT";
+      } else if(buzzerState.lockedBy){
+        bb.textContent = `Buzzer: ${buzzerState.lockedName}`;
+      } else {
+        bb.textContent = "Buzzer: frei";
+      }
     }
 
+    // ------------------------------
     // Round sync
+    // ------------------------------
+    roundRef.once("value").then(s => {
+      if(!s.exists()){
+        roundRef.set({ round: 1, mult: 1, at: Date.now() });
+      }
+    });
+
     roundRef.on("value", snap => {
       const st = snap.val();
       if(!st) return;
@@ -452,16 +498,20 @@ buzzerSound.preload = "auto";
       pointMultiplier = st.mult || 1;
       categories = (round === 2) ? [...round2Categories] : [...round1Categories];
       renderBoard();
-      updateBadge();
+      updateBadges();
     });
 
+    // ------------------------------
     // Used sync
+    // ------------------------------
     usedRef.on("value", snap => {
       used = snap.val() || {};
       renderBoard();
     });
 
+    // ------------------------------
     // Players sync
+    // ------------------------------
     playersRef.on("value", snap => {
       const list = [];
       snap.forEach(ch => {
@@ -469,6 +519,54 @@ buzzerSound.preload = "auto";
         if(v && v.name) list.push({ id: ch.key, name: v.name, score: v.score || 0 });
       });
       players = list;
+      renderScores();
+    });
+
+    // ------------------------------
+    // Buzzer enabled sync (lock/frei)
+    // ------------------------------
+    buzzerEnabledRef.once("value").then(s => {
+      if(!s.exists()) buzzerEnabledRef.set(true);
+    });
+
+    buzzerEnabledRef.on("value", snap => {
+      buzzerEnabled = (snap.val() !== false);
+      const btn = document.getElementById("toggleBuzz");
+      btn.textContent = buzzerEnabled ? "🔒 Buzzer sperren" : "🔓 Buzzer freigeben";
+      updateBadges();
+      renderScores();
+    });
+
+    document.getElementById("toggleBuzz").addEventListener("click", () => {
+      buzzerEnabledRef.set(!buzzerEnabled);
+    });
+
+    document.getElementById("resetBuzz").addEventListener("click", () => {
+      buzzerRef.set({ lockedBy: null, lockedName: null, lockedAt: null });
+    });
+
+    // ------------------------------
+    // Buzzer state sync (wer hat gebuzzert?)
+    // ------------------------------
+    buzzerRef.on("value", snap => {
+      const b = snap.val() || { lockedBy: null, lockedName: null, lockedAt: null };
+      const prevLockedBy = buzzerState.lockedBy;
+
+      buzzerState = b;
+
+      // Sound nur wenn neu gelockt
+      if(!prevLockedBy && b.lockedBy){
+        buzzerSound.currentTime = 0;
+        buzzerSound.play().catch(() => {});
+      }
+
+      // Modal-Text (falls Modal offen)
+      const winnerDisplay = document.getElementById("buzzWinner");
+      if(winnerDisplay){
+        winnerDisplay.textContent = b.lockedBy ? `🏆 ${b.lockedName} ist dran!` : "";
+      }
+
+      updateBadges();
       renderScores();
     });
 
@@ -512,8 +610,51 @@ buzzerSound.preload = "auto";
         .sort((a,b) => b.score - a.score)
         .forEach(p => {
           const el = document.createElement("div");
-          el.className = "player";
-          el.innerHTML = `<div class="pname">${p.name}</div><div class="pscore">${p.score}</div>`;
+
+          const isMe = (p.id === myId);
+          const isWinner = (buzzerState.lockedBy && buzzerState.lockedBy === p.id);
+
+          el.className = "player" + (isMe ? " me" : "") + (isWinner ? " winner" : "");
+
+          const canBuzz =
+            isMe &&
+            buzzerEnabled &&
+            (!buzzerState.lockedBy); // nur wenn noch niemand gebuzzert hat
+
+          el.innerHTML = `
+            <div>
+              <div class="pname">${p.name}${isMe ? " (du)" : ""}</div>
+              <div style="opacity:.75;font-size:12px;margin-top:2px;">
+                ${isWinner ? "🏆 hat gebuzzert" : "&nbsp;"}
+              </div>
+            </div>
+
+            <div style="display:flex;gap:10px;align-items:center;">
+              ${isMe ? `
+                <button class="buzzInline" ${canBuzz ? "" : "disabled"}>
+                  ${!buzzerEnabled ? "🔒 Gesperrt" : (buzzerState.lockedBy ? "⛔" : "🔔 Buzzern")}
+                </button>
+              ` : ""}
+              <div class="pscore">${p.score}</div>
+            </div>
+          `;
+
+          if(isMe){
+            const b = el.querySelector(".buzzInline");
+            if(b){
+              b.addEventListener("click", () => {
+                unlockSound();
+                if(!buzzerEnabled) return;
+
+                // First press wins
+                buzzerRef.transaction(cur => {
+                  if(cur && cur.lockedBy) return;
+                  return { lockedBy: myId, lockedName: myName, lockedAt: Date.now() };
+                });
+              });
+            }
+          }
+
           root.appendChild(el);
         });
     }
@@ -531,7 +672,7 @@ buzzerSound.preload = "auto";
         openedBy: myId
       });
 
-      // reset buzzer for this question
+      // Buzzer für diese Frage resetten (optional – wenn du das nicht willst, entferne die nächste Zeile)
       buzzerRef.set({ lockedBy: null, lockedName: null, lockedAt: null });
     }
 
@@ -543,7 +684,6 @@ buzzerSound.preload = "auto";
         return;
       }
 
-      // Ensure local round matches
       round = qstate.round || round;
       pointMultiplier = qstate.mult || pointMultiplier;
       categories = (round === 2) ? [...round2Categories] : [...round1Categories];
@@ -557,7 +697,7 @@ buzzerSound.preload = "auto";
       document.getElementById("mTitle").textContent =
         `${categories[ci].name} – ${q.points * pointMultiplier}`;
       document.getElementById("mMeta").textContent =
-        `Offen für alle – Buzzern!`;
+        `Offen für alle – Buzzern im eigenen Spielerfeld`;
 
       document.getElementById("mQuestion").textContent = q.q;
 
@@ -572,8 +712,12 @@ buzzerSound.preload = "auto";
       document.getElementById("mAnswer").textContent = q.a;
       document.getElementById("mAnswer").classList.remove("show");
 
+      // Gewinneranzeige im Modal live aus buzzerState
+      document.getElementById("buzzWinner").textContent =
+        buzzerState.lockedBy ? `🏆 ${buzzerState.lockedName} ist dran!` : "";
+
       document.getElementById("backdrop").classList.add("show");
-      updateBadge();
+      updateBadges();
     });
 
     function closeModal(){
@@ -584,67 +728,7 @@ buzzerSound.preload = "auto";
     }
 
     // ------------------------------
-    // Buzzer (First press wins)
-    // ------------------------------
-    function buzz(){
-       unlockSound();
-         
-      buzzerRef.transaction(cur => {
-        if(cur && cur.lockedBy) return;
-        return { lockedBy: myId, lockedName: myName, lockedAt: Date.now() };
-      });
-    }
-
-    function resetBuzz(){
-      buzzerRef.set({ lockedBy: null, lockedName: null, lockedAt: null });
-    }
-
-buzzerRef.on("value", snap => {
-  const b = snap.val() || {};
-  const info = document.getElementById("buzzInfo");
-  const btn = document.getElementById("buzzBtn");
-  const winnerDisplay = document.getElementById("buzzWinner");
-
-  if(b.lockedBy){
-
-    // 🔊 Sound für alle
-    buzzerSound.currentTime = 0;
-    buzzerSound.play().catch(() => {});
-
-    // Name klein anzeigen
-    if(info) info.textContent = `🔔 ${b.lockedName} hat gebuzzert!`;
-
-    // Name groß anzeigen
-    if(winnerDisplay){
-      winnerDisplay.textContent = `🏆 ${b.lockedName} ist dran!`;
-    }
-
-    if(btn){
-      btn.disabled = true;
-      btn.textContent =
-        (b.lockedBy === myId)
-        ? "✅ Du bist dran!"
-        : "⛔ Gesperrt";
-    }
-
-  } else {
-
-    if(info) info.textContent = "🟡 Noch niemand gebuzzert";
-
-    if(winnerDisplay){
-      winnerDisplay.textContent = "";
-    }
-
-    if(btn){
-      btn.disabled = false;
-      btn.textContent = "🔔 Buzzern";
-    }
-  }
-});
-
-    // ------------------------------
     // Wertung: Punkte an Buzzer-Winner
-    // (ohne Host: jeder kann werten)
     // ------------------------------
     function markResult(isRight){
       if(!currentPick) return;
@@ -660,7 +744,7 @@ buzzerRef.on("value", snap => {
         const key = `${ci}-${qi}`;
         const q = categories[ci].questions[qi];
 
-        // Frage als used markieren (global)
+        // Frage used markieren (global)
         usedRef.child(key).set(true);
 
         const delta = isRight ? (q.points * pointMultiplier) : -Math.floor((q.points * pointMultiplier) / 2);
@@ -668,7 +752,7 @@ buzzerRef.on("value", snap => {
 
         db.ref("players/" + winnerId + "/score").transaction(s => (s || 0) + delta);
 
-        // Optional: Buzzer reset nach Wertung
+        // Nach Wertung Buzzer wieder frei
         buzzerRef.set({ lockedBy: null, lockedName: null, lockedAt: null });
 
         closeModal();
@@ -678,9 +762,6 @@ buzzerRef.on("value", snap => {
     // ------------------------------
     // Controls
     // ------------------------------
-    document.getElementById("buzzBtn").addEventListener("click", buzz);
-    document.getElementById("resetBuzzBtn").addEventListener("click", resetBuzz);
-
     document.getElementById("showAnswer").addEventListener("click", () => {
       document.getElementById("mAnswer").classList.toggle("show");
     });
@@ -698,23 +779,17 @@ buzzerRef.on("value", snap => {
 
     // Game Reset (global)
     document.getElementById("resetGame").addEventListener("click", () => {
-      if(!confirm("Wirklich ALLES zurücksetzen? (Spieler, Punkte, Fragen, Buzzer)")) return;
+      if(!confirm("Wirklich ALLES zurücksetzen? (Spieler, Punkte, Fragen, Buzzer, Lock)")) return;
       db.ref("game").set(null);
       db.ref("players").set(null);
       alert("Reset ausgeführt. Bitte neu beitreten.");
       window.location.href = "index.html";
     });
 
-    // Initial defaults
-    roundRef.once("value").then(s => {
-      if(!s.exists()){
-        roundRef.set({ round: 1, mult: 1, at: Date.now() });
-      }
-    });
-
+    // Initial UI
     renderBoard();
     renderScores();
-    updateBadge();
+    updateBadges();
   </script>
 </body>
 </html>
