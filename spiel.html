@@ -1,5 +1,5 @@
 <!-- =========================
-     spiel.html
+     spiel.html (OHNE HOST)
      ========================= -->
 <!doctype html>
 <html lang="de">
@@ -264,7 +264,6 @@
     <div class="top">
       <div class="row">
         <div class="badge" id="turnBadge">Verbinde…</div>
-        <div class="badge" id="hostBadge">Host: —</div>
         <button id="resetGame" class="danger">Game Reset</button>
       </div>
 
@@ -309,7 +308,7 @@
 
   <script>
     // ------------------------------
-    // Fragen / Board Daten
+    // Daten
     // ------------------------------
     const POINTS = [100, 200, 300, 400, 500];
 
@@ -388,17 +387,13 @@
 
     let categories = [...round1Categories];
 
-    // Used Questions State (local) – Host schreibt in Firebase, alle lesen
+    // Firebase State
     let used = {};
-
-    // Players (aus Firebase)
     let players = [];
-
-    // Current open question (aus Firebase)
     let currentPick = null;
 
     // ------------------------------
-    // Firebase Multiplayer + Buzzer
+    // Firebase setup (Player)
     // ------------------------------
     const params = new URLSearchParams(window.location.search);
     let myId = params.get("id") || sessionStorage.getItem("playerId");
@@ -409,38 +404,22 @@
     }
 
     const myRef = db.ref("players/" + myId);
-
     const playersRef = db.ref("players");
-    const hostRef = db.ref("game/host");
     const questionRef = db.ref("game/currentQuestion");
     const buzzerRef = db.ref("game/buzzer");
     const usedRef = db.ref("game/used");
     const roundRef = db.ref("game/roundState");
 
-    let isHost = false;
-
-    // Spieler in DB updaten (falls refresh)
+    // Player presence
     myRef.set({ name: myName, score: 0, joinedAt: Date.now() });
     myRef.onDisconnect().remove();
 
-    // Host election (erster gewinnt)
-    hostRef.transaction(cur => {
-      if(cur === null) return myId;
-      return cur;
-    });
+    function updateBadge(){
+      document.getElementById("turnBadge").textContent =
+        `Runde ${round} – Du: ${myName}`;
+    }
 
-    hostRef.on("value", snap => {
-      const hostId = snap.val();
-      isHost = (hostId === myId);
-      document.getElementById("hostBadge").textContent = `Host: ${hostId ? (hostId === myId ? myName : "jemand anders") : "—"}`;
-
-      document.getElementById("resetBuzzBtn").style.display = isHost ? "inline-flex" : "none";
-      document.getElementById("markWrong").style.display = isHost ? "inline-flex" : "none";
-      document.getElementById("markRight").style.display = isHost ? "inline-flex" : "none";
-      document.getElementById("showAnswer").style.display = isHost ? "inline-flex" : "none";
-    });
-
-    // Runde State synchronisieren
+    // Round sync
     roundRef.on("value", snap => {
       const st = snap.val();
       if(!st) return;
@@ -448,16 +427,16 @@
       pointMultiplier = st.mult || 1;
       categories = (round === 2) ? [...round2Categories] : [...round1Categories];
       renderBoard();
-      updateBadges();
+      updateBadge();
     });
 
-    // Used-State synchronisieren
+    // Used sync
     usedRef.on("value", snap => {
       used = snap.val() || {};
       renderBoard();
     });
 
-    // Spieler-Liste synchronisieren
+    // Players sync
     playersRef.on("value", snap => {
       const list = [];
       snap.forEach(ch => {
@@ -466,16 +445,10 @@
       });
       players = list;
       renderScores();
-      updateBadges();
     });
 
-    function updateBadges(){
-      document.getElementById("turnBadge").textContent =
-        `Runde ${round} – Du: ${myName}${isHost ? " (Host)" : ""}`;
-    }
-
     // ------------------------------
-    // Rendering
+    // Render
     // ------------------------------
     function renderBoard(){
       const board = document.getElementById("board");
@@ -497,7 +470,7 @@
           const btn = document.createElement("button");
           btn.className = "qbtn" + (used[key] ? " used" : "");
           btn.textContent = q.points * pointMultiplier;
-          btn.disabled = !!used[key] || !isHost; // nur Host klickt
+          btn.disabled = !!used[key];
 
           btn.addEventListener("click", () => openQuestion(ci, qi));
           board.appendChild(btn);
@@ -521,12 +494,9 @@
     }
 
     // ------------------------------
-    // Question Open / Close (Firebase)
+    // Question open/close (global)
     // ------------------------------
     function openQuestion(ci, qi){
-      if(!isHost) return;
-
-      // aktuelle Frage global setzen
       questionRef.set({
         round,
         mult: pointMultiplier,
@@ -536,7 +506,7 @@
         openedBy: myId
       });
 
-      // buzzer reset
+      // reset buzzer for this question
       buzzerRef.set({ lockedBy: null, lockedName: null, lockedAt: null });
     }
 
@@ -548,7 +518,7 @@
         return;
       }
 
-      // Wenn sich Runde geändert hat, übernehmen
+      // Ensure local round matches
       round = qstate.round || round;
       pointMultiplier = qstate.mult || pointMultiplier;
       categories = (round === 2) ? [...round2Categories] : [...round1Categories];
@@ -562,7 +532,7 @@
       document.getElementById("mTitle").textContent =
         `${categories[ci].name} – ${q.points * pointMultiplier}`;
       document.getElementById("mMeta").textContent =
-        `Buzzern! (Host wertet)`;
+        `Offen für alle – Buzzern!`;
 
       document.getElementById("mQuestion").textContent = q.q;
 
@@ -578,13 +548,12 @@
       document.getElementById("mAnswer").classList.remove("show");
 
       document.getElementById("backdrop").classList.add("show");
+      updateBadge();
     });
 
     function closeModal(){
-      if(isHost){
-        questionRef.set(null);
-      }
-      // Nicht-Host wird durch Listener ebenfalls geschlossen, aber lokal darf er auch schließen
+      // global schließen (für alle)
+      questionRef.set(null);
       document.getElementById("backdrop").classList.remove("show");
       currentPick = null;
     }
@@ -594,13 +563,12 @@
     // ------------------------------
     function buzz(){
       buzzerRef.transaction(cur => {
-        if(cur && cur.lockedBy) return; // schon gelockt
+        if(cur && cur.lockedBy) return;
         return { lockedBy: myId, lockedName: myName, lockedAt: Date.now() };
       });
     }
 
     function resetBuzz(){
-      if(!isHost) return;
       buzzerRef.set({ lockedBy: null, lockedName: null, lockedAt: null });
     }
 
@@ -625,14 +593,11 @@
     });
 
     // ------------------------------
-    // Host-Wertung: Punkte an Buzzer-Winner
+    // Wertung: Punkte an Buzzer-Winner
+    // (ohne Host: jeder kann werten)
     // ------------------------------
     function markResult(isRight){
       if(!currentPick) return;
-      if(!isHost){
-        alert("Nur der Host kann werten.");
-        return;
-      }
 
       buzzerRef.once("value").then(bs => {
         const b = bs.val() || {};
@@ -645,7 +610,7 @@
         const key = `${ci}-${qi}`;
         const q = categories[ci].questions[qi];
 
-        // Used in Firebase speichern
+        // Frage als used markieren (global)
         usedRef.child(key).set(true);
 
         const delta = isRight ? (q.points * pointMultiplier) : -Math.floor((q.points * pointMultiplier) / 2);
@@ -667,7 +632,6 @@
     document.getElementById("resetBuzzBtn").addEventListener("click", resetBuzz);
 
     document.getElementById("showAnswer").addEventListener("click", () => {
-      if(!isHost) return;
       document.getElementById("mAnswer").classList.toggle("show");
     });
 
@@ -675,44 +639,32 @@
     document.getElementById("markRight").addEventListener("click", () => markResult(true));
     document.getElementById("closeModal").addEventListener("click", closeModal);
 
-    // Runde 2
+    // Runde 2 (global)
     document.getElementById("round2Btn").addEventListener("click", () => {
-      if(!isHost){
-        alert("Nur der Host kann Runde 2 starten.");
-        return;
-      }
       roundRef.set({ round: 2, mult: 2, at: Date.now() });
       usedRef.set(null);
       alert("🔥 Runde 2 gestartet! Doppelte Punkte!");
     });
 
-    // Game Reset
+    // Game Reset (global)
     document.getElementById("resetGame").addEventListener("click", () => {
-      if(!isHost){
-        alert("Nur der Host kann resetten.");
-        return;
-      }
-      if(!confirm("Wirklich ALLES zurücksetzen? (Spieler, Punkte, Fragen, Host, Buzzer)")) return;
-
+      if(!confirm("Wirklich ALLES zurücksetzen? (Spieler, Punkte, Fragen, Buzzer)")) return;
       db.ref("game").set(null);
       db.ref("players").set(null);
-
-      // Nach Reset wird der nächste, der beitritt, wieder Host.
       alert("Reset ausgeführt. Bitte neu beitreten.");
       window.location.href = "index.html";
     });
 
-    // Initial defaults (falls game/roundState noch nicht existiert)
+    // Initial defaults
     roundRef.once("value").then(s => {
       if(!s.exists()){
         roundRef.set({ round: 1, mult: 1, at: Date.now() });
       }
     });
 
-    // Initial UI
     renderBoard();
     renderScores();
-    updateBadges();
+    updateBadge();
   </script>
 </body>
 </html>
