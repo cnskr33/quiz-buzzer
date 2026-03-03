@@ -1,128 +1,113 @@
+<!-- =========================
+     index.html
+     ========================= -->
 <!doctype html>
 <html lang="de">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Quizshow Login</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Quizduell – Login</title>
 
-<!-- FIREBASE -->
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+  <!-- FIREBASE -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 
-<script>
-const firebaseConfig = {
-  apiKey: "AIzaSyCob25y3pT7O6wjf21l9xiaCXhGMFLzFQg",
-  authDomain: "testprojekt-dada3.firebaseapp.com",
-  databaseURL: "https://testprojekt-dada3-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "testprojekt-dada3",
-  storageBucket: "testprojekt-dada3.firebasestorage.app",
-  messagingSenderId: "651866459764",
-  appId: "1:651866459764:web:ed23cf3fd5ccf02a42cb21"
-};
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCob25y3pT7O6wjf21l9xiaCXhGMFLzFQg",
+      authDomain: "testprojekt-dada3.firebaseapp.com",
+      databaseURL: "https://testprojekt-dada3-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "testprojekt-dada3",
+      storageBucket: "testprojekt-dada3.appspot.com",
+      messagingSenderId: "651866459764",
+      appId: "1:651866459764:web:ed23cf3fd5ccf02a42cb21"
+    };
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-let myName = "";
-let playerRef = null;
-let playerId = null;
-</script>
+    let myName = "";
+    let playerId = null;
+    let playerRef = null;
 
-<style>
-body{
-  margin:0;
-  font-family:Arial;
-  background:#0b1020;
-  color:#e9eefc;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  height:100vh;
-}
+    function enterGame(){
+      const name = document.getElementById("loginName").value.trim();
+      if(!name){ alert("Name eingeben"); return; }
 
-.loginBox{
-  background:#111a33;
-  padding:30px;
-  border-radius:15px;
-  display:flex;
-  flex-direction:column;
-  gap:15px;
-  width:300px;
-  text-align:center;
-}
+      myName = name;
 
-input{
-  padding:12px;
-  border-radius:8px;
-  border:none;
-  font-size:16px;
-}
+      playerId = db.ref("players").push().key;
+      playerRef = db.ref("players/" + playerId);
 
-button{
-  padding:12px;
-  border:none;
-  border-radius:8px;
-  background:#2563eb;
-  color:white;
-  font-size:16px;
-  cursor:pointer;
-}
+      playerRef.set({
+        name: myName,
+        score: 0,
+        joinedAt: Date.now()
+      });
 
-button:hover{
-  background:#1e4ed8;
-}
-</style>
+      playerRef.onDisconnect().remove();
+
+      sessionStorage.setItem("playerId", playerId);
+      sessionStorage.setItem("playerName", myName);
+
+      window.location.href = "spiel.html?id=" + playerId;
+    }
+
+    window.addEventListener("beforeunload", function(){
+      if(playerRef) playerRef.remove();
+    });
+  </script>
+
+  <style>
+    body{
+      margin:0;
+      font-family:system-ui, Arial;
+      background:#0b1020;
+      color:#e9eefc;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      height:100vh;
+    }
+    .loginBox{
+      background:#111a33;
+      padding:30px;
+      border-radius:15px;
+      display:flex;
+      flex-direction:column;
+      gap:15px;
+      width:320px;
+      text-align:center;
+      border:1px solid rgba(255,255,255,0.12);
+    }
+    input{
+      padding:12px;
+      border-radius:10px;
+      border:none;
+      font-size:16px;
+      outline:none;
+    }
+    button{
+      padding:12px;
+      border:none;
+      border-radius:10px;
+      background:#2563eb;
+      color:white;
+      font-size:16px;
+      cursor:pointer;
+      font-weight:800;
+    }
+    button:hover{ background:#1e4ed8; }
+  </style>
 </head>
-
 <body>
-
-<div class="loginBox">
-  <h2>Quizshow</h2>
-  <input id="loginName" placeholder="Dein Name" />
-  <button onclick="enterGame()">Einwählen</button>
-</div>
-
-<script>
-
-function enterGame(){
-  const name = document.getElementById("loginName").value.trim();
-  if(!name){
-    alert("Name eingeben");
-    return;
-  }
-
-  myName = name;
-
-  // 🔥 Eindeutige Spieler-ID erzeugen
-  playerId = db.ref("players").push().key;
-  playerRef = db.ref("players/" + playerId);
-
-  playerRef.set({
-    name: myName,
-    lives: 2,
-    joinedAt: Date.now()
-  });
-
-  // 🔥 Automatisch löschen wenn Verbindung getrennt wird
-  playerRef.onDisconnect().remove();
-
-  // 🔥 Daten für spiel.html speichern
-  sessionStorage.setItem("playerId", playerId);
-  sessionStorage.setItem("playerName", myName);
-
-  // Weiterleitung
-  window.location.href = "spiel.html?id=" + playerId;
-}
-
-// Falls Browser aktiv geschlossen wird
-window.addEventListener("beforeunload", function () {
-  if(playerRef){
-    playerRef.remove();
-  }
-});
-
-</script>
-
+  <div class="loginBox">
+    <h2>Quizduell</h2>
+    <input id="loginName" placeholder="Dein Name" />
+    <button onclick="enterGame()">Einwählen</button>
+    <div style="opacity:.75;font-size:12px;line-height:1.35">
+      Hinweis: Der erste, der beitritt, wird automatisch Host.
+    </div>
+  </div>
 </body>
 </html>
-
