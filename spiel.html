@@ -1,445 +1,718 @@
+<!-- =========================
+     spiel.html
+     ========================= -->
 <!doctype html>
 <html lang="de">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Quizshow – Zeitstrahl</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Quizduell</title>
 
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+  <!-- FIREBASE -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 
-<script>
-const firebaseConfig = {
-  apiKey: "AIzaSyCob25y3pT7O6wjf21l9xiaCXhGMFLzFQg",
-  authDomain: "testprojekt-dada3.firebaseapp.com",
-  databaseURL: "https://testprojekt-dada3-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "testprojekt-dada3",
-  storageBucket: "testprojekt-dada3.appspot.com",
-  messagingSenderId: "651866459764",
-  appId: "1:651866459764:web:ed23cf3fd5ccf02a42cb21"
-};
-
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-
-// Spieler-ID holen
-const params = new URLSearchParams(window.location.search);
-let playerId = params.get("id") || sessionStorage.getItem("playerId");
-
-if(!playerId){
-  window.location.href = "index.html";
-}
-
-const playerRef = db.ref("players/" + playerId);
-const playerName = sessionStorage.getItem("playerName") || "Spieler";
-
-playerRef.set({
-  name: playerName,
-  lives: 2,
-  joinedAt: Date.now()
-});
-
-// HOST LOGIK
-const hostRef = db.ref("game/host");
-
-hostRef.transaction(currentHost => {
-  if(currentHost === null){
-    return playerId; // erster Spieler wird Host
-  }
-  return currentHost;
-});
-
-// Wenn erster Host → Runde auf 0 setzen
-db.ref("game/currentRound").once("value").then(snap => {
-  if(snap.val() === null){
-    db.ref("game/currentRound").set(0);
-  }
-});
-  
-// Host löschen wenn er disconnectet
-playerRef.onDisconnect().remove();
-
-hostRef.on("value", snap => {
-  const hostId = snap.val();
-  window.isHost = (hostId === playerId);
-});
-
-playerRef.onDisconnect().remove();
-
-</script>
-
-<style>
-body{margin:0;background:#0b1020;color:#e9eefc;font-family:system-ui}
-.app{display:grid;grid-template-rows:auto 1fr auto;gap:16px;padding:16px;height:100vh;box-sizing:border-box}
-.card{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:16px;padding:16px}
-.timeline{display:grid;gap:10px;margin-top:12px}
-.slot{border-radius:16px;border:1px dashed rgba(255,255,255,0.3);min-height:170px;padding:10px;display:grid;grid-template-rows:24px 1fr}
-.slotHeader{text-align:center;font-weight:900}
-.slotBody{display:grid;place-items:center}
-.pool{display:grid;grid-template-columns:repeat(8,minmax(120px,1fr));gap:10px;margin-top:8px}
-.cardItem{border-radius:16px;border:1px solid rgba(255,255,255,0.12);background:rgba(0,0,0,0.22);padding:10px;display:grid;gap:8px;justify-items:center;cursor:grab}
-.cardItem img{width:72px;height:72px;border-radius:12px;object-fit:cover}
-.cardItem[data-status="pending"]{outline:2px solid gold}
-.cardItem[data-status="fixed"]{outline:2px solid limegreen}
-.scoreboard{display:grid;grid-template-columns:repeat(5,minmax(160px,1fr));gap:10px}
-.player{padding:10px;border-radius:14px;background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.1)}
-.hearts{font-size:18px;margin-top:4px}
-button{padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#e9eefc;cursor:pointer}
-button:hover{background:rgba(255,255,255,0.2)}
-</style>
-</head>
-
-
-<body>
-<div class="app">
-
-<div class="card">
-<h2 id="title"></h2>
-
-<div>
-<button onclick="checkPlacement()">Überprüfen</button>
-<button onclick="randomizeStart()">Zufällig</button>
-<button id="nextRoundBtn" onclick="nextRound()">Nächste Runde</button>
-<button id="resetBtn" onclick="resetPlayers()">Spieler Reset</button>
-</div>
-
-
-<div id="timeline" class="timeline"></div>
-
-<h3>Pool</h3>
-<div id="pool" class="pool"></div>
-</div>
-
-<div class="card">
-<h3>Spieler</h3>
-<div id="players" class="scoreboard"></div>
-</div>
-
-</div>
-
-<script>
-const rounds=[
-{
-title:"Runde 1 – Marktwerte (Mio €)",
-items:[
-{id:"yamal",name:"Lamine Yamal",value:258.4,img:"assets/lamine_yamal.jpg"},
-{id:"mbappe",name:"Kylian Mbappé",value:192.1,img:"assets/kylian_mbappe.jpg"},
-{id:"vinicius",name:"Vinicius Junior",value:182.7,img:"assets/vinicius_junior.jpg"},
-{id:"haaland",name:"Erling Haaland",value:177.9,img:"assets/erling_haaland.jpg"},
-{id:"bellingham",name:"Jude Bellingham",value:177.1,img:"assets/jude_bellingham.jpg"},
-{id:"olise",name:"Michael Olise",value:156.7,img:"assets/michael_olise.jpg"},
-{id:"pedri",name:"Pedri",value:142.3,img:"assets/pedri.jpg"},
-{id:"palmer",name:"Cole Palmer",value:138.7,img:"assets/cole_palmer.jpg"},
-{id:"musiala",name:"Jamal Musiala",value:130.7,img:"assets/jamal_musiala.jpg"},
-{id:"wirtz",name:"Florian Wirtz",value:126.5,img:"assets/florian_wirtz.jpg"},
-{id:"saka",name:"Bukayo Saka",value:123.0,img:"assets/bukayo_saka.jpg"},
-{id:"cubarsi",name:"Pau Cubarsí",value:122.9,img:"assets/pau_cubarsi.jpg"},
-{id:"rice",name:"Declan Rice",value:121.1,img:"assets/declan_rice.jpg"},
-{id:"gyokeres",name:"Viktor Gyökeres",value:120.1,img:"assets/viktor_gyokeres.jpg"},
-{id:"joaoneves",name:"João Neves",value:129.7,img:"assets/joao_neves.jpg"}
-]
-}
-];
-
-let currentRound=0;
-let slotPlacements=[];
-let statusById={};
-let poolOrder=[];
-let lastPlacedId=null;
-window.isHost = false;
-
-  
-function initRound(){
-  const r = rounds[currentRound];
-  document.getElementById("title").innerText = r.title;
-
-  if(!window.isHost) return;
-
-  // Nur Slots speichern (Pool wird berechnet)
-  let slots = Array(r.items.length).fill(null);
-
-  // zufällige Startkarte in die Mitte
-  const ids = r.items.map(x => x.id);
-  shuffle(ids);
-
-  const mid = Math.floor(slots.length / 2);
-  slots[mid] = ids[0];
-
-  db.ref("game/state").set({
-    slots: slots
-  });
-}
-
-
-
-function seedMiddle(){
-const mid=Math.floor(slotPlacements.length/2);
-const id=poolOrder.pop();
-slotPlacements[mid]=id;
-statusById[id]="fixed";
-}
-
-function randomizeStart(){
-initRound();
-}
-
-function renderAll(){
-renderTimeline();
-renderPool();
-}
-
-function renderTimeline(){
-  const timeline = document.getElementById("timeline");
-
-  const len = (slotPlacements && slotPlacements.length)
-    ? slotPlacements.length
-    : rounds[currentRound].items.length;
-
-  timeline.style.gridTemplateColumns = `repeat(${len}, minmax(64px,1fr))`;
-  timeline.innerHTML = "";
-
-  for(let i = 0; i < len; i++){
-
-    const id = slotPlacements[i] || null;
-
-    const slot = document.createElement("div");
-    slot.className = "slot";
-
-    const header = document.createElement("div");
-    header.className = "slotHeader";
-    header.innerText = i + 1;
-
-    const body = document.createElement("div");
-    body.className = "slotBody";
-
-    if(id){
-      body.appendChild(makeCard(getItem(id), true));
-    } else {
-      body.innerText = "Drop";
-    }
-
-    slot.appendChild(header);
-    slot.appendChild(body);
-
-    slot.ondragover = e => e.preventDefault();
-
-    slot.ondrop = e => {
-      e.preventDefault();
-      const dropped = e.dataTransfer.getData("id");
-      insertWithShift(i, dropped);
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCob25y3pT7O6wjf21l9xiaCXhGMFLzFQg",
+      authDomain: "testprojekt-dada3.firebaseapp.com",
+      databaseURL: "https://testprojekt-dada3-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "testprojekt-dada3",
+      storageBucket: "testprojekt-dada3.appspot.com",
+      messagingSenderId: "651866459764",
+      appId: "1:651866459764:web:ed23cf3fd5ccf02a42cb21"
     };
 
-    timeline.appendChild(slot);
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+  </script>
+
+  <style>
+   :root{
+    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    --bg0:#070A12;
+    --bg1:#0B1020;
+    --stroke: rgba(255,255,255,0.12);
+    --stroke2: rgba(255,255,255,0.18);
+    --text:#EAF0FF;
+    --muted: rgba(234,240,255,0.72);
+    --accent:#7C5CFF;
+    --accent2:#24D8FF;
+    --bad:#FF4D6D;
   }
-}
 
+  body{
+    margin:0;
+    color:var(--text);
+    background:
+      radial-gradient(1200px 700px at 15% 0%, rgba(124,92,255,0.25), transparent 55%),
+      radial-gradient(900px 600px at 85% 15%, rgba(36,216,255,0.18), transparent 60%),
+      radial-gradient(1000px 700px at 40% 100%, rgba(255,77,109,0.10), transparent 60%),
+      linear-gradient(180deg, var(--bg0), var(--bg1));
+  }
 
-function renderPool(){
-  const pool = document.getElementById("pool");
-  pool.innerHTML = "";
+  .app{
+    padding:16px;
+    display:grid;
+    gap:14px;
+    height:100vh;
+    box-sizing:border-box;
+  }
 
-  // Pool dynamisch berechnen: alle Items - alles was in slots liegt
-  const allIds = rounds[currentRound].items.map(x => x.id);
-  const inSlots = new Set((slotPlacements || []).filter(Boolean));
-  const poolIds = allIds.filter(id => !inSlots.has(id));
+  .top{
+    display:flex;
+    gap:12px;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    padding:12px 14px;
+    border-radius:18px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
+    border:1px solid var(--stroke);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08);
+    backdrop-filter: blur(10px);
+  }
 
-  // Optional: mischen, damit Pool nicht immer gleich aussieht
-  shuffle(poolIds);
+  .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
 
-  poolIds.forEach(id => {
-    pool.appendChild(makeCard(getItem(id), false));
-  });
-}
+  .badge{
+    padding:9px 12px;
+    border-radius:14px;
+    border:1px solid var(--stroke2);
+    background: rgba(0,0,0,0.22);
+    font-weight:850;
+    letter-spacing:0.2px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+  }
 
-function makeCard(item,inSlot){
-const card=document.createElement("div");
-card.className="cardItem";
-card.dataset.status=statusById[item.id]||"pool";
-card.draggable=true;
-card.innerHTML=`<img src="${item.img}"><div>${item.name}</div>`;
-card.ondragstart=e=>e.dataTransfer.setData("id",item.id);
-return card;
-}
+  input, button{
+    border-radius: 14px;
+    border: 1px solid var(--stroke2);
+    background: rgba(255,255,255,0.06);
+    color: var(--text);
+    padding: 10px 12px;
+    font-size: 14px;
+    outline: none;
+  }
 
-function insertWithShift(index, id){
-  if(!window.isHost) return;
+  button{
+    cursor:pointer;
+    font-weight:800;
+  }
+  button:hover{ background: rgba(255,255,255,0.10); }
+  button:disabled{ opacity:.55; cursor:not-allowed; }
 
-  const stateRef = db.ref("game/state");
+  .danger{ border-color: rgba(255,77,109,0.40); }
+  .danger:hover{ background: rgba(255,77,109,0.14); }
 
-  stateRef.transaction(state => {
-    if(!state || !state.slots) return state;
+  .boardWrap{
+    border-radius:18px;
+    border:1px solid var(--stroke);
+    background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03));
+    padding:12px;
+    overflow:auto;
+    box-shadow: 0 12px 34px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08);
+    backdrop-filter: blur(10px);
+  }
 
-    // Slots als echtes Array absichern (falls Firebase Objekt liefert)
-    let slots = Array.isArray(state.slots) ? state.slots : Object.values(state.slots);
+  .board{
+    display:grid;
+    grid-template-columns: repeat(5, minmax(180px, 1fr));
+    grid-template-rows: 74px repeat(5, 84px);
+    gap:12px;
+    min-width: 920px;
+  }
 
-    const existing = slots.indexOf(id);
-    if(existing !== -1) slots[existing] = null;
+  .cell{
+    border-radius:18px;
+    border:1px solid var(--stroke);
+    background: rgba(0,0,0,0.18);
+    display:grid;
+    place-items:center;
+    padding:12px;
+    text-align:center;
+    user-select:none;
+  }
 
-    slots[index] = id;
+  .headerCell{
+    font-weight:950;
+    font-size:16px;
+    letter-spacing:0.3px;
+    color: rgba(234,240,255,0.92);
+    background:
+      linear-gradient(135deg, rgba(124,92,255,0.22), rgba(36,216,255,0.14)),
+      rgba(0,0,0,0.20);
+    border-color: rgba(255,255,255,0.14);
+    box-shadow: 0 10px 26px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.10);
+  }
 
-    return { slots: slots };
-  });
-}
+  .qbtn{
+    width:100%;
+    height:100%;
+    border-radius:18px;
+    font-size:22px;
+    font-weight:950;
+    letter-spacing:0.2px;
+    background:
+      radial-gradient(120px 90px at 30% 20%, rgba(124,92,255,0.22), transparent 60%),
+      radial-gradient(140px 100px at 80% 80%, rgba(36,216,255,0.18), transparent 60%),
+      rgba(0,0,0,0.22);
+    border:1px solid rgba(255,255,255,0.14);
+    box-shadow: 0 10px 28px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.08);
+  }
+  .qbtn.used{
+    background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.03));
+    border-style: dashed;
+    opacity:.55;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+  }
 
-function checkPlacement(){
-  if(!window.isHost) return;
+  .scores{
+    display:grid;
+    grid-template-columns: repeat(6, minmax(160px, 1fr));
+    gap:12px;
+  }
 
-  const stateRef = db.ref("game/state");
+  .player{
+    border-radius:16px;
+    border:1px solid rgba(255,255,255,0.12);
+    background: radial-gradient(220px 120px at 20% 0%, rgba(124,92,255,0.14), transparent 70%),
+      rgba(0,0,0,0.20);
+    padding:12px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.06);
+  }
 
-  stateRef.once("value").then(snap => {
-    const state = snap.val();
-    if(!state || !state.slots) return;
+  .pname{ font-weight:900; color: rgba(234,240,255,0.92); }
+  .pscore{ font-weight:950; font-size:22px; min-width:60px; text-align:right; }
 
-    const slots = Array.isArray(state.slots) ? state.slots : Object.values(state.slots);
-    const values = slots.map(id => id ? getItem(id).value : null);
+  .backdrop{
+    position:fixed;
+    inset:0;
+    background: rgba(2,4,10,0.72);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:16px;
+  }
+  .backdrop.show{ display:flex; }
 
-    for(let i = 1; i < values.length; i++){
-      if(values[i] !== null && values[i-1] !== null && values[i] < values[i-1]){
-        // falscher Slot = der aktuelle i
-        const wrongId = slots[i];
-        slots[i] = null;
+  .modal{
+    width:min(760px, 100%);
+    border-radius:22px;
+    border:1px solid rgba(255,255,255,0.14);
+    background:
+      radial-gradient(480px 220px at 15% 0%, rgba(124,92,255,0.25), transparent 60%),
+      radial-gradient(480px 220px at 85% 0%, rgba(36,216,255,0.18), transparent 60%),
+      rgba(10,14,30,0.96);
+    padding:16px;
+    display:grid;
+    gap:12px;
+    box-shadow: 0 24px 70px rgba(0,0,0,0.55);
+  }
+  .modal h3{ margin:0; font-size:18px; font-weight:950; letter-spacing:0.2px; }
+  .modal .meta{ opacity:.78; font-size:13px; color: var(--muted); }
+  .modal .qtext{
+    font-size:22px;
+    line-height:1.4;
+    font-weight:900;
+    text-align:center;
+  }
 
-        stateRef.set({ slots: slots });
-        loseLife();
-        return;
+  .modal .answer{
+    padding:12px;
+    border-radius:16px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    display:none;
+    white-space:pre-wrap;
+  }
+  .modal .answer.show{ display:block; }
+
+  .modal .actions{
+    display:flex;
+    gap:10px;
+    justify-content:flex-end;
+    flex-wrap:wrap;
+    align-items:center;
+  }
+
+  .modal img{
+    width: 100%;
+    max-width: 520px;
+    height: 260px;
+    object-fit: contain;
+    background: rgba(0,0,0,0.35);
+    border-radius:16px;
+    margin: 0 auto 14px;
+    display:block;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.45);
+  }
+
+  @media (max-width: 760px){
+    .board{ min-width: 720px; }
+    .scores{ grid-template-columns: repeat(2, minmax(160px, 1fr)); }
+  }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <div class="top">
+      <div class="row">
+        <div class="badge" id="turnBadge">Verbinde…</div>
+        <div class="badge" id="hostBadge">Host: —</div>
+        <button id="resetGame" class="danger">Game Reset</button>
+      </div>
+
+      <div class="row">
+        <button id="round2Btn">🔥 Runde 2</button>
+      </div>
+    </div>
+
+    <div class="boardWrap">
+      <div class="board" id="board"></div>
+    </div>
+
+    <div class="scores" id="scores"></div>
+  </div>
+
+  <!-- Modal -->
+  <div class="backdrop" id="backdrop">
+    <div class="modal">
+      <div>
+        <h3 id="mTitle">Kategorie – 100</h3>
+        <div class="meta" id="mMeta"></div>
+      </div>
+
+      <img id="mImage" style="display:none;" />
+      <div class="qtext" id="mQuestion"></div>
+
+      <div class="answer" id="mAnswer"></div>
+
+      <div class="actions">
+        <div id="buzzInfo" style="margin-right:auto; opacity:.85; font-weight:900;"></div>
+
+        <button id="buzzBtn">🔔 Buzzern</button>
+        <button id="resetBuzzBtn">Buzzer Reset</button>
+
+        <button id="showAnswer">Antwort zeigen</button>
+        <button id="markWrong" class="danger">Falsch</button>
+        <button id="markRight">Richtig (+Punkte)</button>
+        <button id="closeModal">Schließen</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ------------------------------
+    // Fragen / Board Daten
+    // ------------------------------
+    const POINTS = [100, 200, 300, 400, 500];
+
+    let round = 1;
+    let pointMultiplier = 1;
+
+    const round1Categories = [
+      {
+        name: "Welche Frage ist es?",
+        questions: [
+          { points: 100, q: "Der Nil", a: "Wie heißt der längste Fluss der Erde?" },
+          { points: 200, q: "Der Mount Everest", a: "Was ist der höchste Berg der Welt?" },
+          { points: 300, q: "Der Marianengraben", a: "Wie heißt die tiefste bekannte Stelle der Weltmeere?" },
+          { points: 400, q: "196", a: "Wie viele Länder sind aktuell international anerkannt?" },
+          { points: 500, q: "299.792 Kilometer pro Sekunde", a: "Wie hoch ist die Lichtgeschwindigkeit im Vakuum?" }
+        ]
+      },
+      {
+        name: "Wer kennt mich am Besten?",
+        questions: [
+          { points: 100, q: "An welchem Datum habe ich Geburtstag?", a: "15.09.1998" },
+          { points: 200, q: "Was ist mein Lieblingsanime?", a: "One Piece" },
+          { points: 300, q: "In welchem Fußballverein habe ich zuerst gespielt?", a: "Sperber Neukölln" },
+          { points: 400, q: "Wie esse ich meinen Döner?", a: "Knoblauch + Scharf, Salat komplett" },
+          { points: 500, q: "In welchem Monat und Jahr bin ich in meine Wohnung eingezogen?", a: "Juli 2022" }
+        ]
+      },
+      {
+        name: "Wer ist das?",
+        questions: [
+          { points: 100, q: "Wer ist diese Person?", img: "images/wer-ist-das/israel_kolo.jpg", a: "Israel Kamakawiwo'ole" },
+          { points: 200, q: "Wer ist diese Person?", img: "images/wer-ist-das/barack_obama.jpg", a: "Barack Obama" },
+          { points: 300, q: "Wer ist diese Person?", img: "images/wer-ist-das/friedrich_merz.jpg", a: "Friedrich Merz" },
+          { points: 400, q: "Wer ist diese Person?", img: "images/wer-ist-das/kollegah.jpg", a: "Kollegah" },
+          { points: 500, q: "Wer ist diese Person?", img: "images/wer-ist-das/elias_nerlich.jpg", a: "Elias Nerlich" }
+        ]
+      },
+      {
+        name: "Sport – Einmal alles",
+        questions: [
+          { points: 100, q: "Wie nennt man das höchstmögliche Finish im Darts?", a: "170" },
+          { points: 200, q: "Welche Rückennummer trug Miroslav Klose bei der Fußball-WM 2014?", a: "11" },
+          { points: 300, q: "Was bedeutet der Begriff „Triple Double“ im Basketball?", a: "Zweistellige Werte in drei statistischen Kategorien in einem Spiel" },
+          { points: 400, q: "Wie lange hält der Baron-Buff nach dem Töten von Baron Nashor an?", a: "3 Minuten" },
+          { points: 500, q: "Wie hoch ist das Netz in der Mitte eines regulären Padel-Feldes?", a: "88 Zentimeter" }
+        ]
+      },
+      {
+        name: "Unsere Games",
+        questions: [
+          { points: 100, q: "Wie viele Runden muss ein Team in Valorant gewinnen, um ein Match regulär zu gewinnen?", a: "13" },
+          { points: 200, q: "Wie viele Minuten dauert ein reguläres FIFA-Spiel standardmäßig pro Halbzeit?", a: "6 Minuten" },
+          { points: 300, q: "Wie nennt man die Spezialfähigkeit von Michael in GTA 5?", a: "Bullet Time / Zeitlupen-Fähigkeit" },
+          { points: 400, q: "Wie lange hält der Baron-Buff nach dem Töten von Baron Nashor an?", a: "3 Minuten" },
+          { points: 500, q: "Wofür steht die Abkürzung „MMORPG“?", a: "Massively Multiplayer Online Role-Playing Game" }
+        ]
       }
+    ];
+
+    const round2Categories = [
+      round1Categories[0],
+      round1Categories[1],
+      round1Categories[2],
+      round1Categories[3],
+      {
+        name: "Morph",
+        questions: [
+          { points: 600, q: "Welche zwei Personen wurden hier gemorpht?", img: "images/morph/morph1.jpg", a: "Person A + Person B" },
+          { points: 600, q: "Welche zwei Personen wurden hier gemorpht?", img: "images/morph/morph2.jpg", a: "Person C + Person D" },
+          { points: 600, q: "Welche zwei Personen wurden hier gemorpht?", img: "images/morph/morph3.jpg", a: "Person E + Person F" },
+          { points: 600, q: "Welche zwei Personen wurden hier gemorpht?", img: "images/morph/morph4.jpg", a: "Person G + Person H" },
+          { points: 600, q: "Welche zwei Personen wurden hier gemorpht?", img: "images/morph/morph5.jpg", a: "Person I + Person J" }
+        ]
+      }
+    ];
+
+    let categories = [...round1Categories];
+
+    // Used Questions State (local) – Host schreibt in Firebase, alle lesen
+    let used = {};
+
+    // Players (aus Firebase)
+    let players = [];
+
+    // Current open question (aus Firebase)
+    let currentPick = null;
+
+    // ------------------------------
+    // Firebase Multiplayer + Buzzer
+    // ------------------------------
+    const params = new URLSearchParams(window.location.search);
+    let myId = params.get("id") || sessionStorage.getItem("playerId");
+    let myName = sessionStorage.getItem("playerName") || "Spieler";
+
+    if(!myId){
+      window.location.href = "index.html";
     }
-  });
-}
 
-function loseLife(){
-playerRef.transaction(data=>{
-if(!data)return data;
-data.lives=(data.lives||2)-1;
-if(data.lives<0)data.lives=0;
-return data;
-});
-}
+    const myRef = db.ref("players/" + myId);
 
-function getItem(id){
-return rounds[currentRound].items.find(x=>x.id===id);
-}
+    const playersRef = db.ref("players");
+    const hostRef = db.ref("game/host");
+    const questionRef = db.ref("game/currentQuestion");
+    const buzzerRef = db.ref("game/buzzer");
+    const usedRef = db.ref("game/used");
+    const roundRef = db.ref("game/roundState");
 
-function shuffle(arr){
-for(let i=arr.length-1;i>0;i--){
-const j=Math.floor(Math.random()*(i+1));
-[arr[i],arr[j]]=[arr[j],arr[i]];
-}
-}
+    let isHost = false;
 
-function nextRound(){
-  if(!window.isHost) return;
+    // Spieler in DB updaten (falls refresh)
+    myRef.set({ name: myName, score: 0, joinedAt: Date.now() });
+    myRef.onDisconnect().remove();
 
-  const roundRef = db.ref("game/currentRound");
+    // Host election (erster gewinnt)
+    hostRef.transaction(cur => {
+      if(cur === null) return myId;
+      return cur;
+    });
 
-  roundRef.transaction(current => {
-    if(current === null) return 1;
-    let next = current + 1;
-    if(next >= rounds.length) next = 0;
-    return next;
-  });
-}
-  
-function resetPlayers(){
-  if(confirm("Wirklich alle Spieler zurücksetzen?")){
-    db.ref("players").remove();
-  }
-}
- 
-/* Spieler Anzeige */
-db.ref("players").on("value",snap=>{
-const container=document.getElementById("players");
-container.innerHTML="";
+    hostRef.on("value", snap => {
+      const hostId = snap.val();
+      isHost = (hostId === myId);
+      document.getElementById("hostBadge").textContent = `Host: ${hostId ? (hostId === myId ? myName : "jemand anders") : "—"}`;
 
-snap.forEach(child=>{
-const data = child.val();
+      document.getElementById("resetBuzzBtn").style.display = isHost ? "inline-flex" : "none";
+      document.getElementById("markWrong").style.display = isHost ? "inline-flex" : "none";
+      document.getElementById("markRight").style.display = isHost ? "inline-flex" : "none";
+      document.getElementById("showAnswer").style.display = isHost ? "inline-flex" : "none";
+    });
 
-if(!data || !data.name){
-  // Zombie-Eintrag -> direkt löschen
-  db.ref("players/"+child.key).remove();
-  return;
-}
+    // Runde State synchronisieren
+    roundRef.on("value", snap => {
+      const st = snap.val();
+      if(!st) return;
+      round = st.round || 1;
+      pointMultiplier = st.mult || 1;
+      categories = (round === 2) ? [...round2Categories] : [...round1Categories];
+      renderBoard();
+      updateBadges();
+    });
 
-const div=document.createElement("div");
-div.className="player";
-div.innerHTML=`
-<strong>${data.name}</strong>
-<div class="hearts">${"❤️".repeat(data.lives||2)}</div>
-`;
-container.appendChild(div);
-});
-});
+    // Used-State synchronisieren
+    usedRef.on("value", snap => {
+      used = snap.val() || {};
+      renderBoard();
+    });
 
+    // Spieler-Liste synchronisieren
+    playersRef.on("value", snap => {
+      const list = [];
+      snap.forEach(ch => {
+        const v = ch.val();
+        if(v && v.name) list.push({ id: ch.key, name: v.name, score: v.score || 0 });
+      });
+      players = list;
+      renderScores();
+      updateBadges();
+    });
 
-// Host-UI + Init
-db.ref("game/host").on("value", snap => {
-  const hostId = snap.val();
-  window.isHost = (hostId === playerId);
+    function updateBadges(){
+      document.getElementById("turnBadge").textContent =
+        `Runde ${round} – Du: ${myName}${isHost ? " (Host)" : ""}`;
+    }
 
-  const nextBtn = document.getElementById("nextRoundBtn");
-  const resetBtn = document.getElementById("resetBtn");
+    // ------------------------------
+    // Rendering
+    // ------------------------------
+    function renderBoard(){
+      const board = document.getElementById("board");
+      board.innerHTML = "";
 
-  if(!window.isHost){
-    if(nextBtn) nextBtn.style.display = "none";
-    if(resetBtn) resetBtn.style.display = "none";
-    return;
-  }
-
-  // Wenn ich Host bin -> Runde sicherstellen
-  db.ref("game/currentRound").transaction(cur => {
-    if(cur === null) return 0;
-    return cur;
-  }).then(() => {
-
-    db.ref("game/currentRound").once("value").then(s => {
-      currentRound = s.val() ?? 0;
-
-      // State nur erzeugen, wenn noch keiner existiert
-      db.ref("game/state").once("value").then(st => {
-        if(!st.exists()){
-          initRound();
-        }
+      categories.forEach((cat) => {
+        const cell = document.createElement("div");
+        cell.className = "cell headerCell";
+        cell.textContent = cat.name;
+        board.appendChild(cell);
       });
 
+      POINTS.forEach((pts, rowIdx) => {
+        categories.forEach((cat, ci) => {
+          const qi = rowIdx;
+          const q = cat.questions[qi];
+
+          const key = `${ci}-${qi}`;
+          const btn = document.createElement("button");
+          btn.className = "qbtn" + (used[key] ? " used" : "");
+          btn.textContent = q.points * pointMultiplier;
+          btn.disabled = !!used[key] || !isHost; // nur Host klickt
+
+          btn.addEventListener("click", () => openQuestion(ci, qi));
+          board.appendChild(btn);
+        });
+      });
+    }
+
+    function renderScores(){
+      const root = document.getElementById("scores");
+      root.innerHTML = "";
+
+      players
+        .slice()
+        .sort((a,b) => b.score - a.score)
+        .forEach(p => {
+          const el = document.createElement("div");
+          el.className = "player";
+          el.innerHTML = `<div class="pname">${p.name}</div><div class="pscore">${p.score}</div>`;
+          root.appendChild(el);
+        });
+    }
+
+    // ------------------------------
+    // Question Open / Close (Firebase)
+    // ------------------------------
+    function openQuestion(ci, qi){
+      if(!isHost) return;
+
+      // aktuelle Frage global setzen
+      questionRef.set({
+        round,
+        mult: pointMultiplier,
+        ci,
+        qi,
+        openedAt: Date.now(),
+        openedBy: myId
+      });
+
+      // buzzer reset
+      buzzerRef.set({ lockedBy: null, lockedName: null, lockedAt: null });
+    }
+
+    questionRef.on("value", snap => {
+      const qstate = snap.val();
+      if(!qstate){
+        document.getElementById("backdrop").classList.remove("show");
+        currentPick = null;
+        return;
+      }
+
+      // Wenn sich Runde geändert hat, übernehmen
+      round = qstate.round || round;
+      pointMultiplier = qstate.mult || pointMultiplier;
+      categories = (round === 2) ? [...round2Categories] : [...round1Categories];
+
+      const { ci, qi } = qstate;
+      currentPick = { ci, qi };
+
+      const q = categories[ci]?.questions[qi];
+      if(!q) return;
+
+      document.getElementById("mTitle").textContent =
+        `${categories[ci].name} – ${q.points * pointMultiplier}`;
+      document.getElementById("mMeta").textContent =
+        `Buzzern! (Host wertet)`;
+
+      document.getElementById("mQuestion").textContent = q.q;
+
+      const imgEl = document.getElementById("mImage");
+      if (q.img) {
+        imgEl.src = q.img;
+        imgEl.style.display = "block";
+      } else {
+        imgEl.style.display = "none";
+      }
+
+      document.getElementById("mAnswer").textContent = q.a;
+      document.getElementById("mAnswer").classList.remove("show");
+
+      document.getElementById("backdrop").classList.add("show");
     });
 
-  });
+    function closeModal(){
+      if(isHost){
+        questionRef.set(null);
+      }
+      // Nicht-Host wird durch Listener ebenfalls geschlossen, aber lokal darf er auch schließen
+      document.getElementById("backdrop").classList.remove("show");
+      currentPick = null;
+    }
 
-});
+    // ------------------------------
+    // Buzzer (First press wins)
+    // ------------------------------
+    function buzz(){
+      buzzerRef.transaction(cur => {
+        if(cur && cur.lockedBy) return; // schon gelockt
+        return { lockedBy: myId, lockedName: myName, lockedAt: Date.now() };
+      });
+    }
 
+    function resetBuzz(){
+      if(!isHost) return;
+      buzzerRef.set({ lockedBy: null, lockedName: null, lockedAt: null });
+    }
 
+    buzzerRef.on("value", snap => {
+      const b = snap.val() || {};
+      const info = document.getElementById("buzzInfo");
+      const btn = document.getElementById("buzzBtn");
 
-  
-// Globale Rundensynchronisation
-db.ref("game/currentRound").on("value", snap => {
-  const value = snap.val();
-  if(value === null) return;
-
-  currentRound = value;
-
-  // Wenn ich Host bin → prüfen ob State existiert
-  if(window.isHost){
-    db.ref("game/state").once("value").then(st => {
-      if(!st.exists()){
-        initRound();
+      if(b.lockedBy){
+        if(info) info.textContent = `🔒 Gebuzzert: ${b.lockedName}`;
+        if(btn){
+          btn.disabled = true;
+          btn.textContent = (b.lockedBy === myId) ? "✅ Du bist dran" : "⛔ Gesperrt";
+        }
+      } else {
+        if(info) info.textContent = "🟡 Noch niemand gebuzzert";
+        if(btn){
+          btn.disabled = false;
+          btn.textContent = "🔔 Buzzern";
+        }
       }
     });
-  }
-});
 
-db.ref("game/state").on("value", snap => {
-  const state = snap.val();
-  if(!state || !state.slots) return;
+    // ------------------------------
+    // Host-Wertung: Punkte an Buzzer-Winner
+    // ------------------------------
+    function markResult(isRight){
+      if(!currentPick) return;
+      if(!isHost){
+        alert("Nur der Host kann werten.");
+        return;
+      }
 
-  slotPlacements = Array.isArray(state.slots)
-    ? state.slots
-    : Object.values(state.slots || {});
+      buzzerRef.once("value").then(bs => {
+        const b = bs.val() || {};
+        if(!b.lockedBy){
+          alert("Erst buzzern lassen!");
+          return;
+        }
 
-  renderAll();
-});
+        const { ci, qi } = currentPick;
+        const key = `${ci}-${qi}`;
+        const q = categories[ci].questions[qi];
 
+        // Used in Firebase speichern
+        usedRef.child(key).set(true);
 
-  
-</script>
+        const delta = isRight ? (q.points * pointMultiplier) : -Math.floor((q.points * pointMultiplier) / 2);
+        const winnerId = b.lockedBy;
+
+        db.ref("players/" + winnerId + "/score").transaction(s => (s || 0) + delta);
+
+        // Optional: Buzzer reset nach Wertung
+        buzzerRef.set({ lockedBy: null, lockedName: null, lockedAt: null });
+
+        closeModal();
+      });
+    }
+
+    // ------------------------------
+    // Controls
+    // ------------------------------
+    document.getElementById("buzzBtn").addEventListener("click", buzz);
+    document.getElementById("resetBuzzBtn").addEventListener("click", resetBuzz);
+
+    document.getElementById("showAnswer").addEventListener("click", () => {
+      if(!isHost) return;
+      document.getElementById("mAnswer").classList.toggle("show");
+    });
+
+    document.getElementById("markWrong").addEventListener("click", () => markResult(false));
+    document.getElementById("markRight").addEventListener("click", () => markResult(true));
+    document.getElementById("closeModal").addEventListener("click", closeModal);
+
+    // Runde 2
+    document.getElementById("round2Btn").addEventListener("click", () => {
+      if(!isHost){
+        alert("Nur der Host kann Runde 2 starten.");
+        return;
+      }
+      roundRef.set({ round: 2, mult: 2, at: Date.now() });
+      usedRef.set(null);
+      alert("🔥 Runde 2 gestartet! Doppelte Punkte!");
+    });
+
+    // Game Reset
+    document.getElementById("resetGame").addEventListener("click", () => {
+      if(!isHost){
+        alert("Nur der Host kann resetten.");
+        return;
+      }
+      if(!confirm("Wirklich ALLES zurücksetzen? (Spieler, Punkte, Fragen, Host, Buzzer)")) return;
+
+      db.ref("game").set(null);
+      db.ref("players").set(null);
+
+      // Nach Reset wird der nächste, der beitritt, wieder Host.
+      alert("Reset ausgeführt. Bitte neu beitreten.");
+      window.location.href = "index.html";
+    });
+
+    // Initial defaults (falls game/roundState noch nicht existiert)
+    roundRef.once("value").then(s => {
+      if(!s.exists()){
+        roundRef.set({ round: 1, mult: 1, at: Date.now() });
+      }
+    });
+
+    // Initial UI
+    renderBoard();
+    renderScores();
+    updateBadges();
+  </script>
 </body>
 </html>
