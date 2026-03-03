@@ -25,6 +25,9 @@
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+// 🔊 Globaler Buzzer-Sound
+const buzzerSound = new Audio("https://actions.google.com/sounds/v1/alarms/buzzer.ogg");
+buzzerSound.preload = "auto";
   </script>
 
   <style>
@@ -285,6 +288,7 @@
       <div>
         <h3 id="mTitle">Kategorie – 100</h3>
         <div class="meta" id="mMeta"></div>
+        <div id="buzzWinner" style="font-size:20px;font-weight:900;color:#FFD66E;text-align:center;">
       </div>
 
       <img id="mImage" style="display:none;" />
@@ -572,25 +576,48 @@
       buzzerRef.set({ lockedBy: null, lockedName: null, lockedAt: null });
     }
 
-    buzzerRef.on("value", snap => {
-      const b = snap.val() || {};
-      const info = document.getElementById("buzzInfo");
-      const btn = document.getElementById("buzzBtn");
+buzzerRef.on("value", snap => {
+  const b = snap.val() || {};
+  const info = document.getElementById("buzzInfo");
+  const btn = document.getElementById("buzzBtn");
+  const winnerDisplay = document.getElementById("buzzWinner");
 
-      if(b.lockedBy){
-        if(info) info.textContent = `🔒 Gebuzzert: ${b.lockedName}`;
-        if(btn){
-          btn.disabled = true;
-          btn.textContent = (b.lockedBy === myId) ? "✅ Du bist dran" : "⛔ Gesperrt";
-        }
-      } else {
-        if(info) info.textContent = "🟡 Noch niemand gebuzzert";
-        if(btn){
-          btn.disabled = false;
-          btn.textContent = "🔔 Buzzern";
-        }
-      }
-    });
+  if(b.lockedBy){
+
+    // 🔊 Sound für alle
+    buzzerSound.currentTime = 0;
+    buzzerSound.play().catch(() => {});
+
+    // Name klein anzeigen
+    if(info) info.textContent = `🔔 ${b.lockedName} hat gebuzzert!`;
+
+    // Name groß anzeigen
+    if(winnerDisplay){
+      winnerDisplay.textContent = `🏆 ${b.lockedName} ist dran!`;
+    }
+
+    if(btn){
+      btn.disabled = true;
+      btn.textContent =
+        (b.lockedBy === myId)
+        ? "✅ Du bist dran!"
+        : "⛔ Gesperrt";
+    }
+
+  } else {
+
+    if(info) info.textContent = "🟡 Noch niemand gebuzzert";
+
+    if(winnerDisplay){
+      winnerDisplay.textContent = "";
+    }
+
+    if(btn){
+      btn.disabled = false;
+      btn.textContent = "🔔 Buzzern";
+    }
+  }
+});
 
     // ------------------------------
     // Wertung: Punkte an Buzzer-Winner
